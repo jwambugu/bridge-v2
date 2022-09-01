@@ -51,7 +51,7 @@ type EnvKey interface {
 }
 
 // Get returns the value of the environment variable named by the key, If the Key is not set, it returns the fallback.
-func Get[V EnvKey](key Key, fallback V) V {
+func Get[T EnvKey](key Key, fallback T) T {
 	val := os.Getenv(string(key))
 	if val == "" {
 		return fallback
@@ -72,7 +72,7 @@ func Get[V EnvKey](key Key, fallback V) V {
 	default:
 		return fallback
 	}
-	return value.(V)
+	return value.(T)
 }
 
 // GetEnvironment returns the current running environment the application is running on.

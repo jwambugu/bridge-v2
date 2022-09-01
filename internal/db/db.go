@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jmoiron/sqlx"
+
+	_ "github.com/lib/pq"
 )
 
 var ErrInvalidDSN = errors.New("db: dsn cannot be empty") // empty dsn
@@ -18,7 +20,7 @@ func NewConnection() (*sqlx.DB, error) {
 
 	db, err := sqlx.Connect("postgres", dsn)
 	if err != nil {
-		return nil, fmt.Errorf("new db connection: %w", err)
+		return nil, fmt.Errorf("new connection: %w", err)
 	}
 	return db, nil
 }
