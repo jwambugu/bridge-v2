@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package api.v1;
+option go_package = "./pb";
+
+import "validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+message Branch {
+  uint64 ID = 1; // @gotags: db:"id"
+  string name = 2 [(validate.rules).string.min_len = 1]; // @gotags: db:"name"
+  uint32 sap_id = 3 [(validate.rules).uint32.gt = 0]; // @gotags: db:"sap_id"
+  google.protobuf.Timestamp created_at = 7 [json_name = "created_at"]; // @gotags: db:"created_at"
+  google.protobuf.Timestamp updated_at = 8 [json_name = "updated_at"]; // @gotags: db:"updated_at"
+}
