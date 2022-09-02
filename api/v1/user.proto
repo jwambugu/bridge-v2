@@ -1,10 +1,10 @@
 syntax = "proto3";
+import "google/protobuf/timestamp.proto";
+import "validate/validate.proto";
 
 package api.v1;
 option go_package = "./pb";
 
-import "google/protobuf/timestamp.proto";
-import "validate/validate.proto";
 
 message KYCData {
   string id_number = 1 [json_name = "id_number"];
@@ -15,14 +15,22 @@ message UserMeta {
   KYCData kyc_data = 1;
 }
 
-
 message User {
+  enum AccountStatus {
+    ACTIVE = 0;
+    PENDING_ACTIVE = 1;
+    SUSPENDED = 3;
+    INACTIVE = 4;
+  }
+
   uint64 ID = 1; // @gotags: db:"id"
   string name = 2 [(validate.rules).string.min_len = 1]; // @gotags: db:"name"
   string email = 3 [(validate.rules).string.email = true]; // @gotags: db:"email"
   string phone_number = 4 [json_name = "phone_number", (validate.rules).string.min_len = 1]; // @gotags: db:"phone_number"
   string password = 5 [(validate.rules).string.min_len = 8]; // @gotags: db:"password"
-  UserMeta meta = 6; // @gotags: db:"meta"
-  google.protobuf.Timestamp created_at = 7 [json_name = "created_at"]; // @gotags: db:"created_at"
-  google.protobuf.Timestamp updated_at = 8 [json_name = "updated_at"]; // @gotags: db:"updated_at"
+  AccountStatus account_status = 6; // @gotags: db:"account_status"
+  UserMeta meta = 7; // @gotags: db:"meta"
+  google.protobuf.Timestamp created_at = 8 [json_name = "created_at"]; // @gotags: db:"created_at"
+  google.protobuf.Timestamp updated_at = 9 [json_name = "updated_at"]; // @gotags: db:"updated_at"
+  google.protobuf.Timestamp deleted_at = 10 [json_name = "deleted_at"]; // @gotags: db:"deleted_at"
 }

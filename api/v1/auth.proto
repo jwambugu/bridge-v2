@@ -1,4 +1,5 @@
 syntax = "proto3";
+import "user.proto";
 
 package api.v1;
 option go_package = "./pb";
@@ -9,7 +10,8 @@ message LoginRequest {
 }
 
 message LoginResponse {
-  string access_token = 1 [json_name = "access_token"];
+  User user = 1;
+  string access_token = 2 [json_name = "access_token"];
 }
 
 service AuthService {
