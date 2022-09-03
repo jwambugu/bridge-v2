@@ -2,24 +2,27 @@ package auth_test
 
 import (
 	"bridge/api/v1/pb"
+	"bridge/core/config"
 	"bridge/core/factory"
 	"bridge/core/repository"
 	"bridge/services/auth"
 	"bridge/services/user"
 	"context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"net"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-func startGrpcServer(t *testing.T, rs *repository.Store) string {
+func startGrpcServer(t *testing.T, rs *repository.Store, jwtManager auth.JWTManager) string {
 	t.Helper()
 
 	var (
-		authSrv = auth.NewServer(rs)
+		authSrv = auth.NewServer(rs, jwtManager)
 		srv     = grpc.NewServer()
 	)
 
@@ -44,22 +47,86 @@ func testGrpcAuthClient(t *testing.T, addr string) pb.AuthServiceClient {
 }
 
 func TestServer_Login(t *testing.T) {
-	u := factory.NewUser()
-	rs := repository.NewStore()
-	rs.UserRepo = user.NewTestRepo(u)
+	tests := []struct {
+		name     string
+		setup    func(t *testing.T) (*pb.User, string)
+		wantCode codes.Code
+	}{
+		{
+			name: "user can be authenticated successfully",
+			setup: func(t *testing.T) (*pb.User, string) {
+				t.Helper()
 
-	var (
-		srvAddr    = startGrpcServer(t, rs)
-		authClient = testGrpcAuthClient(t, srvAddr)
-		ctx        = context.Background()
+				newUser := factory.NewUser()
+				user.NewTestRepo(newUser)
+				return newUser, factory.DefaultPassword
+			},
+			wantCode: codes.OK,
+		},
+		{
+			name: "authentication fails if incorrect password is provided",
+			setup: func(t *testing.T) (*pb.User, string) {
+				t.Helper()
 
-		req = &pb.LoginRequest{
-			Email:    u.GetEmail(),
-			Password: "password",
-		}
-	)
+				newUser := factory.NewUser()
+				user.NewTestRepo(newUser)
+				return newUser, "test"
+			},
+			wantCode: codes.Unauthenticated,
+		},
+		{
+			name: "authentication fails if user does not exists",
+			setup: func(t *testing.T) (*pb.User, string) {
+				t.Helper()
 
-	res, err := authClient.Login(ctx, req)
-	require.NoError(t, err)
-	require.NotNil(t, res)
+				newUser := factory.NewUser()
+				return newUser, "test"
+			},
+			wantCode: codes.Unauthenticated,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			rs := repository.NewStore()
+			rs.UserRepo = user.NewTestRepo()
+			testUser, password := tt.setup(t)
+
+			jwtKey := config.Get[string](config.JWTKey, "")
+			jwtManager, err := auth.NewPasetoToken(jwtKey)
+			require.NoError(t, err)
+
+			var (
+				srvAddr    = startGrpcServer(t, rs, jwtManager)
+				authClient = testGrpcAuthClient(t, srvAddr)
+				ctx        = context.Background()
+
+				req = &pb.LoginRequest{
+					Email:    testUser.Email,
+					Password: password,
+				}
+			)
+
+			res, err := authClient.Login(ctx, req)
+			if tt.wantCode != codes.OK {
+				statusFromError, ok := status.FromError(err)
+				require.True(t, ok)
+				require.Equal(t, codes.Unauthenticated, statusFromError.Code())
+				require.Nil(t, res)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, res)
+
+			accessTokenPayload, err := jwtManager.Verify(res.AccessToken)
+			require.NoError(t, err)
+			require.Equal(t, res.User.ID, accessTokenPayload.Subject)
+			require.Equal(t, res.User, accessTokenPayload.User)
+		})
+	}
+
 }

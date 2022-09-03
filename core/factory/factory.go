@@ -5,10 +5,14 @@ import (
 	cryptorand "crypto/rand"
 	"encoding/binary"
 	"github.com/jaswdr/faker"
+	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"log"
 	"math/rand"
 	"time"
 )
+
+const DefaultPassword = "secret"
 
 func Seed() int64 {
 	var b [8]byte
@@ -21,12 +25,17 @@ func Seed() int64 {
 
 func NewUser() *pb.User {
 	f := faker.NewWithSeed(rand.NewSource(Seed()))
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(DefaultPassword), bcrypt.DefaultCost)
+	if err != nil {
+		log.Fatalf("hashing password: %v", err)
+	}
 	return &pb.User{
 		ID:            f.UInt64(),
 		Name:          f.Person().Name(),
 		Email:         f.Numerify("########") + "." + f.Internet().Email(),
 		PhoneNumber:   f.Numerify("+###########"),
-		Password:      "",
+		Password:      string(hashedPassword),
 		AccountStatus: pb.User_ACTIVE,
 		Meta: &pb.UserMeta{
 			KycData: &pb.KYCData{

@@ -7,9 +7,15 @@ import (
 	"errors"
 )
 
-type UserMeta struct {
-	*pb.UserMeta
-}
+type (
+	User struct {
+		*pb.User
+	}
+
+	UserMeta struct {
+		*pb.UserMeta
+	}
+)
 
 // Value implements driver.Valuer which simply returns the JSON-encoded representation of UserMeta.
 func (m *UserMeta) Value() (driver.Value, error) {
