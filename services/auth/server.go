@@ -4,6 +4,8 @@ import (
 	"bridge/api/v1/pb"
 	"bridge/core/repository"
 	"context"
+	"database/sql"
+	"errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"log"
@@ -12,16 +14,25 @@ import (
 type server struct {
 	pb.UnimplementedAuthServiceServer
 
-	rs repository.Store
+	rs *repository.Store
 }
 
 func (s *server) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
-	user := &pb.User{
-		Email: req.GetEmail(),
+	credentials, err := s.rs.UserRepo.Authenticate(ctx, req.GetEmail())
+	if err != nil {
+		log.Printf("failed to authenticate user: %v", err.Error())
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, status.Error(codes.Unauthenticated, "unauthenticated")
+		}
+		return nil, status.Errorf(codes.Internal, "error finding user: %v", err)
 	}
 
-	if err := s.rs.UserRepo.Find(ctx, user); err != nil {
+	user, err := s.rs.UserRepo.Find(ctx, credentials.ID)
+	if err != nil {
 		log.Printf("failed to find user: %v", err.Error())
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, status.Error(codes.Unauthenticated, "unauthenticated")
+		}
 		return nil, status.Errorf(codes.Internal, "error finding user: %v", err)
 	}
 
@@ -32,6 +43,6 @@ func (s *server) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResp
 	return res, nil
 }
 
-func NewService(rs repository.Store) *server {
+func NewServer(rs *repository.Store) *server {
 	return &server{rs: rs}
 }

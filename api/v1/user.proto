@@ -17,8 +17,9 @@ message UserMeta {
 
 message User {
   enum AccountStatus {
-    ACTIVE = 0;
-    PENDING_ACTIVE = 1;
+    UNKNOWN = 0;
+    ACTIVE = 1;
+    PENDING_ACTIVE = 2;
     SUSPENDED = 3;
     INACTIVE = 4;
   }

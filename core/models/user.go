@@ -8,7 +8,7 @@ import (
 )
 
 type UserMeta struct {
-	pb.UserMeta
+	*pb.UserMeta
 }
 
 // Value implements driver.Valuer which simply returns the JSON-encoded representation of UserMeta.
