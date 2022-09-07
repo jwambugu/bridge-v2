@@ -1,10 +1,10 @@
 syntax = "proto3";
+import "validate/validate.proto";
+import "google/protobuf/timestamp.proto";
 
 package api.v1;
 option go_package = "./pb";
 
-import "validate/validate.proto";
-import "google/protobuf/timestamp.proto";
 
 message Branch {
   uint64 ID = 1; // @gotags: db:"id"
