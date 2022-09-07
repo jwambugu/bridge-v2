@@ -15,7 +15,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 )
 
 func startGrpcServer(t *testing.T, rs *repository.Store, jwtManager auth.JWTManager) string {
@@ -29,10 +29,10 @@ func startGrpcServer(t *testing.T, rs *repository.Store, jwtManager auth.JWTMana
 	pb.RegisterAuthServiceServer(srv, authSrv)
 
 	lis, err := net.Listen("tcp", ":0")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	go func() {
-		require.NoError(t, srv.Serve(lis))
+		assert.NoError(t, srv.Serve(lis))
 	}()
 
 	return lis.Addr().String()
@@ -42,7 +42,7 @@ func testGrpcAuthClient(t *testing.T, addr string) pb.AuthServiceClient {
 	t.Helper()
 
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	return pb.NewAuthServiceClient(conn)
 }
 
@@ -97,7 +97,7 @@ func TestServer_Login(t *testing.T) {
 
 			jwtKey := config.Get[string](config.JWTKey, "")
 			jwtManager, err := auth.NewPasetoToken(jwtKey)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 
 			var (
 				srvAddr    = startGrpcServer(t, rs, jwtManager)
@@ -113,19 +113,19 @@ func TestServer_Login(t *testing.T) {
 			res, err := authClient.Login(ctx, req)
 			if tt.wantCode != codes.OK {
 				statusFromError, ok := status.FromError(err)
-				require.True(t, ok)
-				require.Equal(t, codes.Unauthenticated, statusFromError.Code())
-				require.Nil(t, res)
+				assert.True(t, ok)
+				assert.Equal(t, codes.Unauthenticated, statusFromError.Code())
+				assert.Nil(t, res)
 				return
 			}
 
-			require.NoError(t, err)
-			require.NotNil(t, res)
+			assert.NoError(t, err)
+			assert.NotNil(t, res)
 
 			accessTokenPayload, err := jwtManager.Verify(res.AccessToken)
-			require.NoError(t, err)
-			require.Equal(t, res.User.ID, accessTokenPayload.Subject)
-			require.Equal(t, res.User, accessTokenPayload.User)
+			assert.NoError(t, err)
+			assert.Equal(t, res.User.ID, accessTokenPayload.Subject)
+			assert.Equal(t, res.User, accessTokenPayload.User)
 		})
 	}
 
