@@ -36,6 +36,16 @@ const (
 	_create = `
 	INSERT INTO users (name, email, phone_number, password, account_status, meta, created_at, updated_at)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`
+
+	_updateUser = `
+	UPDATE users
+	SET name           = $1,
+		email          = $2,
+		phone_number   = $3,
+		meta           = $4,
+		account_status = $5,
+		updated_at     = $6
+	WHERE id = $7`
 )
 
 func (r *repo) Authenticate(ctx context.Context, email string) (*pb.User, error) {
@@ -116,6 +126,40 @@ func (r *repo) Find(ctx context.Context, id uint64) (*pb.User, error) {
 	u.UpdatedAt = timestamppb.New(updatedAt)
 	u.Meta = meta.UserMeta
 	return u, nil
+}
+
+func (r *repo) Update(ctx context.Context, user *pb.User) error {
+	if user == nil {
+		return fmt.Errorf("user field can't be nil")
+	}
+
+	stmt, err := r.db.PrepareContext(ctx, _updateUser)
+	if err != nil {
+		return fmt.Errorf("update user prepare: %w", err)
+	}
+
+	var (
+		meta = &models.UserMeta{
+			UserMeta: user.Meta,
+		}
+		updatedAt = time.Now()
+	)
+
+	if _, err := stmt.ExecContext(
+		ctx,
+		user.Name,
+		user.Email,
+		user.PhoneNumber,
+		meta,
+		user.AccountStatus,
+		updatedAt,
+		user.ID,
+	); err != nil {
+		return fmt.Errorf("user update exec: %w", err)
+	}
+
+	user.UpdatedAt = timestamppb.New(updatedAt)
+	return nil
 }
 
 func NewTestRepo(users ...*pb.User) repository.User {

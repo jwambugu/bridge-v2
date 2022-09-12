@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func startGrpcServer(t *testing.T, rs *repository.Store, jwtManager auth.JWTManager) string {
+func startServer(t *testing.T, rs repository.Store, jwtManager auth.JWTManager) string {
 	t.Helper()
 
 	var (
@@ -38,7 +38,7 @@ func startGrpcServer(t *testing.T, rs *repository.Store, jwtManager auth.JWTMana
 	return lis.Addr().String()
 }
 
-func testGrpcAuthClient(t *testing.T, addr string) pb.AuthServiceClient {
+func testAuthClient(t *testing.T, addr string) pb.AuthServiceClient {
 	t.Helper()
 
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -100,8 +100,8 @@ func TestServer_Login(t *testing.T) {
 			assert.NoError(t, err)
 
 			var (
-				srvAddr    = startGrpcServer(t, rs, jwtManager)
-				authClient = testGrpcAuthClient(t, srvAddr)
+				srvAddr    = startServer(t, rs, jwtManager)
+				authClient = testAuthClient(t, srvAddr)
 				ctx        = context.Background()
 
 				req = &pb.LoginRequest{
