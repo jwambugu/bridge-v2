@@ -16,7 +16,7 @@ import (
 type server struct {
 	pb.UnimplementedAuthServiceServer
 
-	rs         *repository.Store
+	rs         repository.Store
 	jwtManager JWTManager
 }
 
@@ -56,7 +56,7 @@ func (s *server) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResp
 	return res, nil
 }
 
-func NewServer(rs *repository.Store, jwtManager JWTManager) *server {
+func NewServer(rs repository.Store, jwtManager JWTManager) *server {
 	return &server{
 		rs:         rs,
 		jwtManager: jwtManager,

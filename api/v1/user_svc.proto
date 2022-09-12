@@ -1,0 +1,26 @@
+syntax = "proto3";
+import "user.proto";
+
+package api.v1;
+option go_package = "./pb";
+
+message CreateUserRequest{
+  User user = 1;
+}
+
+message CreateUserResponse{
+  User user = 1;
+}
+
+message UpdateRequest{
+  User user = 1;
+}
+
+message UpdateResponse{
+  User user = 1;
+}
+
+service UserService{
+  rpc Create(CreateUserRequest) returns (CreateUserResponse);
+  rpc Update(UpdateRequest) returns (UpdateResponse);
+}
