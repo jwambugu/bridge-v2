@@ -22,6 +22,12 @@ type server struct {
 	rs         repository.Store
 }
 
+func (s *server) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
+	l := s.l.With().Str("action", "register user").Str("req", fmt.Sprintf("%+v", req)).Logger()
+	_ = l
+	return nil, nil
+}
+
 func (s *server) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
 	l := s.l.With().Str("action", "login user").Str("req", fmt.Sprintf("%+v", req)).Logger()
 

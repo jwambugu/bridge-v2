@@ -6,25 +6,26 @@ import (
 	"bridge/core/factory"
 	"bridge/core/logger"
 	"bridge/core/repository"
+	"bridge/core/server"
 	"bridge/services/auth"
 	"bridge/services/user"
 	"context"
+	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"net"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
-func startServer(t *testing.T, rs repository.Store, jwtManager auth.JWTManager) string {
+func startServer(t *testing.T, rs repository.Store, l zerolog.Logger, jwtManager auth.JWTManager) string {
 	t.Helper()
 
 	var (
-		authSrv = auth.NewServer(jwtManager, logger.NewTestLogger, rs)
-		srv     = grpc.NewServer()
+		authSrv = auth.NewServer(jwtManager, l, rs)
+		srv     = server.NewGrpcSrv()
 	)
 
 	pb.RegisterAuthServiceServer(srv, authSrv)
@@ -71,7 +72,7 @@ func TestServer_Login(t *testing.T) {
 
 				newUser := factory.NewUser()
 				user.NewTestRepo(newUser)
-				return newUser, "test"
+				return newUser, "test_password"
 			},
 			wantCode: codes.Unauthenticated,
 		},
@@ -81,7 +82,7 @@ func TestServer_Login(t *testing.T) {
 				t.Helper()
 
 				newUser := factory.NewUser()
-				return newUser, "test"
+				return newUser, "test_password"
 			},
 			wantCode: codes.Unauthenticated,
 		},
@@ -101,7 +102,7 @@ func TestServer_Login(t *testing.T) {
 			assert.NoError(t, err)
 
 			var (
-				srvAddr    = startServer(t, rs, jwtManager)
+				srvAddr    = startServer(t, rs, logger.NewTestLogger, jwtManager)
 				authClient = testAuthClient(t, srvAddr)
 				ctx        = context.Background()
 

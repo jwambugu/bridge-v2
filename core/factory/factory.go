@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const DefaultPassword = "secret"
+const DefaultPassword = "secret_password"
 
 func Seed() int64 {
 	var b [8]byte

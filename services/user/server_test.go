@@ -3,10 +3,13 @@ package user_test
 import (
 	"bridge/api/v1/pb"
 	"bridge/core/factory"
+	"bridge/core/logger"
 	"bridge/core/repository"
+	"bridge/core/server"
 	"bridge/services/auth"
 	"bridge/services/user"
 	"context"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -16,13 +19,13 @@ import (
 	"time"
 )
 
-func startServer(t *testing.T, rs repository.Store, jwtManager auth.JWTManager) string {
+func startServer(t *testing.T, rs repository.Store, l zerolog.Logger, jwtManager auth.JWTManager) string {
 	t.Helper()
 
 	var (
-		authSrv = auth.NewServer(rs, jwtManager)
+		authSrv = auth.NewServer(jwtManager, l, rs)
 		userSrv = user.NewServer(rs)
-		srv     = grpc.NewServer()
+		srv     = server.NewGrpcSrv()
 	)
 
 	pb.RegisterAuthServiceServer(srv, authSrv)
@@ -51,7 +54,7 @@ func TestServer_Create(t *testing.T) {
 	rs.UserRepo = user.NewTestRepo()
 
 	var (
-		srvAddr    = startServer(t, rs, nil)
+		srvAddr    = startServer(t, rs, logger.NewTestLogger, nil)
 		userClient = testUserClient(t, srvAddr)
 		ctx        = context.Background()
 		testUser   = factory.NewUser()
@@ -87,7 +90,7 @@ func TestServer_Update(t *testing.T) {
 	rs.UserRepo = user.NewTestRepo(testUser)
 
 	var (
-		srvAddr    = startServer(t, rs, nil)
+		srvAddr    = startServer(t, rs, logger.NewTestLogger, nil)
 		userClient = testUserClient(t, srvAddr)
 		ctx        = context.Background()
 
