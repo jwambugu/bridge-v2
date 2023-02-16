@@ -4,6 +4,7 @@ import (
 	"bridge/api/v1/pb"
 	"bridge/core/config"
 	"bridge/core/factory"
+	"bridge/core/logger"
 	"bridge/core/repository"
 	"bridge/services/auth"
 	"bridge/services/user"
@@ -22,7 +23,7 @@ func startServer(t *testing.T, rs repository.Store, jwtManager auth.JWTManager) 
 	t.Helper()
 
 	var (
-		authSrv = auth.NewServer(rs, jwtManager)
+		authSrv = auth.NewServer(jwtManager, logger.NewTestLogger, rs)
 		srv     = grpc.NewServer()
 	)
 
