@@ -26,7 +26,7 @@ func NewLogger() zerolog.Logger {
 			logLevel = int(zerolog.InfoLevel) // default to INFO
 		}
 
-		var output io.Writer = zerolog.ConsoleWriter{
+		stdoutWriter := zerolog.ConsoleWriter{
 			Out:        os.Stdout,
 			TimeFormat: time.RFC3339,
 		}
@@ -39,9 +39,9 @@ func NewLogger() zerolog.Logger {
 			Compress:   true,
 		}
 
-		output = zerolog.MultiLevelWriter(os.Stderr, fileLogger)
+		mw := io.MultiWriter(stdoutWriter, zerolog.MultiLevelWriter(os.Stderr, fileLogger))
 
-		log = zerolog.New(output).
+		log = zerolog.New(mw).
 			Level(zerolog.Level(logLevel)).
 			With().
 			Timestamp().

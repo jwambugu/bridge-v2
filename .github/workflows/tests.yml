@@ -21,6 +21,9 @@ jobs:
         with:
           go-version: 1.19
 
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1
+
       - name: Generate Protobufs
         run: make protoc
 
