@@ -16,6 +16,8 @@ protoc:
 
 .PHONY: audit
 audit:
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28; which protoc-gen-go
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2; which protoc-gen-go-grpc
 	go install github.com/favadi/protoc-go-inject-tag@latest; which protoc-go-inject-tag
 	go install github.com/envoyproxy/protoc-gen-validate@latest; which protoc-gen-validate;
 
