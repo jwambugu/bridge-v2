@@ -31,7 +31,7 @@ func NewUser() *pb.User {
 		log.Fatalf("hashing password: %v", err)
 	}
 	return &pb.User{
-		ID:            f.UInt64(),
+		ID:            f.UUID().V4(),
 		Name:          f.Person().Name(),
 		Email:         f.Numerify("########") + "." + f.Internet().Email(),
 		PhoneNumber:   f.Numerify("+###########"),

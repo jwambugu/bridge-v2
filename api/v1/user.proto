@@ -23,7 +23,7 @@ message User {
     INACTIVE = 4;
   }
 
-  uint64 ID = 1; // @gotags: db:"id"
+  string ID = 1; // @gotags: db:"id"
   string name = 2; // @gotags: db:"name"
   string email = 3; // @gotags: db:"email"
   string phone_number = 4 [json_name = "phone_number"]; // @gotags: db:"phone_number"

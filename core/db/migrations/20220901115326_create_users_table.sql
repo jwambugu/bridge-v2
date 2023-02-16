@@ -2,16 +2,16 @@
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS users
 (
-    id             bigserial PRIMARY KEY NOT NULL,
-    name           varchar               NOT NULL,
-    email          varchar UNIQUE        NOT NULL,
-    phone_number   varchar UNIQUE        NOT NULL,
-    password       varchar               NOT NULL,
-    account_status varchar               NOT NULL,
-    meta           jsonb       DEFAULT '{}',
-    created_at     timestamptz DEFAULT current_timestamp,
-    updated_at     timestamptz DEFAULT current_timestamp,
-    deleted_at     timestamptz DEFAULT NULL
+    id             uuid primary key default gen_random_uuid(),
+    name           varchar        NOT NULL,
+    email          varchar UNIQUE NOT NULL,
+    phone_number   varchar UNIQUE NOT NULL,
+    password       varchar        NOT NULL,
+    account_status varchar        NOT NULL,
+    meta           jsonb            DEFAULT '{}',
+    created_at     timestamptz      DEFAULT current_timestamp,
+    updated_at     timestamptz      DEFAULT current_timestamp,
+    deleted_at     timestamptz      DEFAULT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_name ON users (name);

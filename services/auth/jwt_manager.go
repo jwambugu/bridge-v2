@@ -32,7 +32,7 @@ type (
 		IssuedAt   time.Time
 		Issuer     string
 		NotBefore  time.Time
-		Subject    uint64
+		Subject    string
 		User       *pb.User
 	}
 )

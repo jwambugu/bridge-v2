@@ -8,7 +8,7 @@ import (
 type User interface {
 	Authenticate(ctx context.Context, email string) (*pb.User, error)
 	Create(ctx context.Context, user *pb.User) error
-	Find(ctx context.Context, id uint64) (*pb.User, error)
+	Find(ctx context.Context, id string) (*pb.User, error)
 	Update(ctx context.Context, user *pb.User) error
 }
 
