@@ -383,6 +383,18 @@ func (m *RegisterRequest) validate(all bool) error {
 		errors = append(errors, err)
 	}
 
+	if utf8.RuneCountInString(m.GetPhoneNumber()) != 12 {
+		err := RegisterRequestValidationError{
+			field:  "PhoneNumber",
+			reason: "value length must be 12 runes",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+
+	}
+
 	if utf8.RuneCountInString(m.GetPassword()) < 8 {
 		err := RegisterRequestValidationError{
 			field:  "Password",

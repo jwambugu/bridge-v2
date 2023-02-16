@@ -37,7 +37,7 @@ func (s *server) Update(ctx context.Context, req *pb.UpdateRequest) (*pb.UpdateR
 	return &pb.UpdateResponse{User: user}, nil
 }
 
-func NewServer(rs repository.Store) *server {
+func NewServer(rs repository.Store) pb.UserServiceServer {
 	return &server{
 		rs: rs,
 	}

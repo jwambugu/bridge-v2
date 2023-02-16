@@ -63,7 +63,6 @@ func (r *repo) Authenticate(ctx context.Context, email string) (*pb.User, error)
 }
 
 func (r *repo) Create(ctx context.Context, user *pb.User) error {
-
 	meta := &models.UserMeta{UserMeta: user.Meta}
 	stmt, err := r.db.PreparexContext(ctx, _create)
 	if err != nil {
@@ -183,6 +182,8 @@ func NewTestRepo(users ...*pb.User) repository.User {
 	return r
 }
 
-func NewRepo(db *sqlx.DB) *repo {
-	return &repo{db: db}
+func NewRepo(db *sqlx.DB) repository.User {
+	return &repo{
+		db: db,
+	}
 }

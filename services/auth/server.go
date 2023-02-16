@@ -3,14 +3,15 @@ package auth
 import (
 	"bridge/api/v1/pb"
 	"bridge/core/repository"
+	"bridge/core/util"
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/rs/zerolog"
-	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"time"
 )
 
@@ -24,8 +25,43 @@ type server struct {
 
 func (s *server) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
 	l := s.l.With().Str("action", "register user").Str("req", fmt.Sprintf("%+v", req)).Logger()
-	_ = l
-	return nil, nil
+
+	if req.Password != req.ConfirmPassword {
+		l.Err(errors.New("passwords do not match")).Msg("password mismatch")
+		return nil, status.Errorf(codes.InvalidArgument, "passwords do not match")
+	}
+
+	passwordHash, err := util.HashString(req.Password)
+	if err != nil {
+		l.Err(err).Msg("failed to hash password")
+		return nil, status.Errorf(codes.Internal, "failed to hash password - %v", err.Error())
+	}
+
+	user := &pb.User{
+		Name:          req.Name,
+		Email:         req.Email,
+		PhoneNumber:   req.PhoneNumber,
+		Password:      string(passwordHash),
+		AccountStatus: pb.User_PENDING_ACTIVE,
+		CreatedAt:     timestamppb.New(time.Now()),
+		UpdatedAt:     timestamppb.New(time.Now()),
+	}
+
+	if err = s.rs.UserRepo.Create(ctx, user); err != nil {
+		l.Err(err).Msg("failed to create user")
+		return nil, status.Errorf(codes.Internal, "failed to create user - %v", err.Error())
+	}
+
+	token, err := s.jwtManager.Generate(user, 60*time.Minute)
+	if err != nil {
+		l.Err(err).Msg("failed to generate access token")
+		return nil, status.Errorf(codes.Internal, "error generating access token: %v", err)
+	}
+
+	return &pb.RegisterResponse{
+		User:        user,
+		AccessToken: token,
+	}, nil
 }
 
 func (s *server) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
@@ -40,8 +76,8 @@ func (s *server) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResp
 		return nil, status.Errorf(codes.Internal, "error finding user: %v", err)
 	}
 
-	if err = bcrypt.CompareHashAndPassword([]byte(credentials.Password), []byte(req.GetPassword())); err != nil {
-		l.Err(err).Msg("failed to compare passwords")
+	if !util.CompareHash(credentials.Password, req.Password) {
+		l.Err(errors.New("passwords don't match")).Msg("passwords hash mismatch")
 		return nil, status.Error(codes.Unauthenticated, codes.Unauthenticated.String())
 	}
 

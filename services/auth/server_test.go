@@ -7,6 +7,7 @@ import (
 	"bridge/core/logger"
 	"bridge/core/repository"
 	"bridge/core/server"
+	"bridge/core/util"
 	"bridge/services/auth"
 	"bridge/services/user"
 	"context"
@@ -130,5 +131,97 @@ func TestServer_Login(t *testing.T) {
 			assert.Equal(t, res.User, accessTokenPayload.User)
 		})
 	}
+}
 
+func TestServer_Register(t *testing.T) {
+	tests := []struct {
+		name      string
+		createReq func() *pb.RegisterRequest
+		wantCode  codes.Code
+	}{
+		{
+			name: "registers a user successfully",
+			createReq: func() *pb.RegisterRequest {
+				u := factory.NewUser()
+				return &pb.RegisterRequest{
+					Name:            u.Name,
+					Email:           u.Email,
+					PhoneNumber:     u.PhoneNumber,
+					Password:        factory.DefaultPassword,
+					ConfirmPassword: factory.DefaultPassword,
+				}
+			},
+			wantCode: codes.OK,
+		},
+		{
+			name: "request fails if passwords don't match",
+			createReq: func() *pb.RegisterRequest {
+				u := factory.NewUser()
+				return &pb.RegisterRequest{
+					Name:            u.Name,
+					Email:           u.Email,
+					PhoneNumber:     u.PhoneNumber,
+					Password:        factory.DefaultPassword,
+					ConfirmPassword: "DefaultPassword",
+				}
+			},
+			wantCode: codes.InvalidArgument,
+		},
+		{
+			name: "request fails if validation rules are not met",
+			createReq: func() *pb.RegisterRequest {
+				u := factory.NewUser()
+				return &pb.RegisterRequest{
+					PhoneNumber: u.PhoneNumber,
+					Password:    factory.DefaultPassword,
+				}
+			},
+			wantCode: codes.InvalidArgument,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			rs := repository.NewStore()
+			rs.UserRepo = user.NewTestRepo()
+
+			jwtKey := config.Get[string](config.JWTKey, "")
+			jwtManager, err := auth.NewPasetoToken(jwtKey)
+			assert.NoError(t, err)
+
+			var (
+				srvAddr    = startServer(t, rs, logger.NewTestLogger, jwtManager)
+				authClient = testAuthClient(t, srvAddr)
+				ctx        = context.Background()
+				req        = tt.createReq()
+			)
+
+			res, err := authClient.Register(ctx, req)
+
+			if tt.wantCode != codes.OK {
+				assert.Error(t, err)
+
+				statusFromError, ok := status.FromError(err)
+				assert.True(t, ok)
+				assert.Equal(t, tt.wantCode, statusFromError.Code())
+				assert.Nil(t, res)
+				return
+			}
+
+			assert.NoError(t, err)
+
+			assert.NotNil(t, res)
+
+			gotUser, err := rs.UserRepo.Find(ctx, res.User.ID)
+			assert.NoError(t, err)
+			assert.Equal(t, req.Name, gotUser.Name)
+			assert.Equal(t, req.Email, gotUser.Email)
+
+			credentials, err := rs.UserRepo.Authenticate(ctx, req.Email)
+			assert.NoError(t, err)
+			assert.NotNil(t, credentials)
+			assert.True(t, util.CompareHash(credentials.Password, req.Password))
+		})
+	}
 }
