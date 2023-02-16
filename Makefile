@@ -10,7 +10,7 @@ build-goose:
 
 .PHONY: protoc
 protoc:
-	rm -r api/v1/pb/*
+	#rm -r api/v1/pb/*
 	protoc -I api/v1 api/v1/*.proto  --go_out=api/v1 --go-grpc_out=api/v1 --validate_out="lang=go:./api/v1"
 	cd api/v1/pb; protoc-go-inject-tag -input="*.pb.go" -remove_tag_comment
 
