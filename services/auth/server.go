@@ -3,40 +3,87 @@ package auth
 import (
 	"bridge/api/v1/pb"
 	"bridge/core/repository"
+	"bridge/core/util"
 	"context"
 	"database/sql"
 	"errors"
-	"golang.org/x/crypto/bcrypt"
+	"fmt"
+	"github.com/rs/zerolog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"log"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"time"
 )
 
 type server struct {
 	pb.UnimplementedAuthServiceServer
 
-	rs         repository.Store
 	jwtManager JWTManager
+	l          zerolog.Logger
+	rs         repository.Store
+}
+
+func (s *server) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
+	l := s.l.With().Str("action", "register user").Str("req", fmt.Sprintf("%+v", req)).Logger()
+
+	if req.Password != req.ConfirmPassword {
+		l.Err(errors.New("passwords do not match")).Msg("password mismatch")
+		return nil, status.Errorf(codes.InvalidArgument, "passwords do not match")
+	}
+
+	passwordHash, err := util.HashString(req.Password)
+	if err != nil {
+		l.Err(err).Msg("failed to hash password")
+		return nil, status.Errorf(codes.Internal, "failed to hash password - %v", err.Error())
+	}
+
+	user := &pb.User{
+		Name:          req.Name,
+		Email:         req.Email,
+		PhoneNumber:   req.PhoneNumber,
+		Password:      string(passwordHash),
+		AccountStatus: pb.User_PENDING_ACTIVE,
+		CreatedAt:     timestamppb.New(time.Now()),
+		UpdatedAt:     timestamppb.New(time.Now()),
+	}
+
+	if err = s.rs.UserRepo.Create(ctx, user); err != nil {
+		l.Err(err).Msg("failed to create user")
+		return nil, status.Errorf(codes.Internal, "failed to create user - %v", err.Error())
+	}
+
+	token, err := s.jwtManager.Generate(user, 60*time.Minute)
+	if err != nil {
+		l.Err(err).Msg("failed to generate access token")
+		return nil, status.Errorf(codes.Internal, "error generating access token: %v", err)
+	}
+
+	return &pb.RegisterResponse{
+		User:        user,
+		AccessToken: token,
+	}, nil
 }
 
 func (s *server) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
+	l := s.l.With().Str("action", "login user").Str("req", fmt.Sprintf("%+v", req)).Logger()
+
 	credentials, err := s.rs.UserRepo.Authenticate(ctx, req.GetEmail())
 	if err != nil {
-		log.Printf("failed to authenticate user: %v", err.Error())
+		l.Err(err).Msg("failed to authenticate user")
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, status.Error(codes.Unauthenticated, "unauthenticated")
 		}
 		return nil, status.Errorf(codes.Internal, "error finding user: %v", err)
 	}
 
-	if err = bcrypt.CompareHashAndPassword([]byte(credentials.Password), []byte(req.GetPassword())); err != nil {
+	if !util.CompareHash(credentials.Password, req.Password) {
+		l.Err(errors.New("passwords don't match")).Msg("passwords hash mismatch")
 		return nil, status.Error(codes.Unauthenticated, codes.Unauthenticated.String())
 	}
 
 	user, err := s.rs.UserRepo.Find(ctx, credentials.ID)
 	if err != nil {
-		log.Printf("failed to find user: %v", err.Error())
+		l.Err(err).Msg("failed to find user")
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, status.Error(codes.Unauthenticated, "unauthenticated")
 		}
@@ -45,7 +92,7 @@ func (s *server) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResp
 
 	token, err := s.jwtManager.Generate(user, 60*time.Minute)
 	if err != nil {
-		log.Printf("failed to generate access token: %v", err.Error())
+		l.Err(err).Msg("failed to generate access token")
 		return nil, status.Errorf(codes.Internal, "error generating access token: %v", err)
 	}
 
@@ -56,9 +103,10 @@ func (s *server) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResp
 	return res, nil
 }
 
-func NewServer(rs repository.Store, jwtManager JWTManager) *server {
+func NewServer(jwtManager JWTManager, l zerolog.Logger, rs repository.Store) pb.AuthServiceServer {
 	return &server{
-		rs:         rs,
 		jwtManager: jwtManager,
+		l:          l.With().Str("service", "auth").Logger(),
+		rs:         rs,
 	}
 }

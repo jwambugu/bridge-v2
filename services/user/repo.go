@@ -63,13 +63,13 @@ func (r *repo) Authenticate(ctx context.Context, email string) (*pb.User, error)
 }
 
 func (r *repo) Create(ctx context.Context, user *pb.User) error {
-	var id uint64
-
 	meta := &models.UserMeta{UserMeta: user.Meta}
 	stmt, err := r.db.PreparexContext(ctx, _create)
 	if err != nil {
 		return fmt.Errorf("create user prepare: %w", err)
 	}
+
+	var id string
 
 	err = stmt.QueryRowxContext(
 		ctx,
@@ -91,8 +91,8 @@ func (r *repo) Create(ctx context.Context, user *pb.User) error {
 	return nil
 }
 
-func (r *repo) Find(ctx context.Context, id uint64) (*pb.User, error) {
-	if id == 0 {
+func (r *repo) Find(ctx context.Context, id string) (*pb.User, error) {
+	if id == "" {
 		return nil, fmt.Errorf("id cannot be empty")
 	}
 
@@ -182,6 +182,8 @@ func NewTestRepo(users ...*pb.User) repository.User {
 	return r
 }
 
-func NewRepo(db *sqlx.DB) *repo {
-	return &repo{db: db}
+func NewRepo(db *sqlx.DB) repository.User {
+	return &repo{
+		db: db,
+	}
 }
