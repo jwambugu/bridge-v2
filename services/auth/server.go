@@ -3,6 +3,7 @@ package auth
 import (
 	"bridge/api/v1/pb"
 	"bridge/core/repository"
+	"bridge/core/rpc_error"
 	"bridge/core/util"
 	"context"
 	"database/sql"
@@ -28,13 +29,13 @@ func (s *server) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Reg
 
 	if req.Password != req.ConfirmPassword {
 		l.Err(errors.New("passwords do not match")).Msg("password mismatch")
-		return nil, status.Errorf(codes.InvalidArgument, "passwords do not match")
+		return nil, rpc_error.ErrPasswordConfirmationMismatch
 	}
 
 	passwordHash, err := util.HashString(req.Password)
 	if err != nil {
 		l.Err(err).Msg("failed to hash password")
-		return nil, status.Errorf(codes.Internal, "failed to hash password - %v", err.Error())
+		return nil, rpc_error.ErrServerError
 	}
 
 	user := &pb.User{
@@ -49,13 +50,13 @@ func (s *server) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Reg
 
 	if err = s.rs.UserRepo.Create(ctx, user); err != nil {
 		l.Err(err).Msg("failed to create user")
-		return nil, status.Errorf(codes.Internal, "failed to create user - %v", err.Error())
+		return nil, rpc_error.ErrCreateResourceFailed
 	}
 
 	token, err := s.jwtManager.Generate(user, 60*time.Minute)
 	if err != nil {
 		l.Err(err).Msg("failed to generate access token")
-		return nil, status.Errorf(codes.Internal, "error generating access token: %v", err)
+		return nil, rpc_error.ErrServerError
 	}
 
 	return &pb.RegisterResponse{
@@ -73,34 +74,33 @@ func (s *server) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResp
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, status.Error(codes.Unauthenticated, "unauthenticated")
 		}
-		return nil, status.Errorf(codes.Internal, "error finding user: %v", err)
+		return nil, rpc_error.ErrServerError
 	}
 
 	if !util.CompareHash(credentials.Password, req.Password) {
 		l.Err(errors.New("passwords don't match")).Msg("passwords hash mismatch")
-		return nil, status.Error(codes.Unauthenticated, codes.Unauthenticated.String())
+		return nil, rpc_error.ErrUnauthenticated
 	}
 
 	user, err := s.rs.UserRepo.Find(ctx, credentials.ID)
 	if err != nil {
 		l.Err(err).Msg("failed to find user")
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, status.Error(codes.Unauthenticated, "unauthenticated")
+			return nil, rpc_error.ErrUnauthenticated
 		}
-		return nil, status.Errorf(codes.Internal, "error finding user: %v", err)
+		return nil, rpc_error.ErrServerError
 	}
 
 	token, err := s.jwtManager.Generate(user, 60*time.Minute)
 	if err != nil {
 		l.Err(err).Msg("failed to generate access token")
-		return nil, status.Errorf(codes.Internal, "error generating access token: %v", err)
+		return nil, rpc_error.ErrServerError
 	}
 
-	res := &pb.LoginResponse{
+	return &pb.LoginResponse{
 		User:        user,
 		AccessToken: token,
-	}
-	return res, nil
+	}, nil
 }
 
 func NewServer(jwtManager JWTManager, l zerolog.Logger, rs repository.Store) pb.AuthServiceServer {
