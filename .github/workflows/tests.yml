@@ -37,6 +37,9 @@ jobs:
       - name: Generate gRPC code
         run: make protoc
 
+      - name: Build goose migration tool
+        run: make build-goose
+
       - name: Run DB migrations
         run: /bin/bash scripts/goose.sh up
         env:
