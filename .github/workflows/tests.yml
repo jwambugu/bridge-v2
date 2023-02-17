@@ -43,6 +43,7 @@ jobs:
       - name: Run DB migrations
         run: /bin/bash scripts/goose.sh up
         env:
+          APP_ENV: cicd
           DB_CONNECTION: postgres
           DB_URL: postgres://postgres:secret@localhost:5432/bridge_test?sslmode=disable
 
