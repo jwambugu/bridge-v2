@@ -1,13 +1,20 @@
 package config
 
 import (
+	"os"
 	"testing"
 )
 
 func TestGet(t *testing.T) {
+	t.Parallel()
+
+	if err := os.Setenv("APP_ENV", string(CiCd)); err != nil {
+		t.Fatalf("want no error, got %v", err)
+	}
+
 	var (
 		wantPort = 8000
-		wantEnv  = "test"
+		wantEnv  = string(CiCd)
 	)
 
 	env := Get[string]("APP_ENV", "local")
@@ -22,14 +29,20 @@ func TestGet(t *testing.T) {
 }
 
 func TestGetEnvironment(t *testing.T) {
-	var wantEnv = Test
+	t.Parallel()
+
+	if err := os.Setenv("APP_ENV", string(CiCd)); err != nil {
+		t.Fatalf("want no error, got %v", err)
+	}
+
+	var wantEnv = CiCd
 
 	got := GetEnvironment()
 	if got != wantEnv {
 		t.Fatalf("want environment %v, got %v", wantEnv, got)
 	}
 
-	if short := got.Short(); short != "t" {
+	if short := got.Short(); short != wantEnv.Short() {
 		t.Fatalf("want short environment %v, got %v", "t", short)
 	}
 }
