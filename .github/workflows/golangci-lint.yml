@@ -1,4 +1,4 @@
-name: golangci-lint
+name: Run linter [golangci-lint]
 on: [ push ]
 jobs:
   golangci:
