@@ -1,7 +1,7 @@
 # This workflow will build a golang project
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
 
-name: Go
+name: Run Tests
 
 on:
   push:
@@ -10,8 +10,18 @@ on:
     branches: [ "main" ]
 
 jobs:
+  test:
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bridge_test
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
 
-  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -30,5 +40,20 @@ jobs:
       - name: Generate gRPC code
         run: make protoc
 
+      - name: Build goose migration tool
+        run: make build-goose
+
+      - name: Run DB migrations
+        run: /bin/bash scripts/goose.sh up
+        env:
+          APP_ENV: cicd
+          DB_CONNECTION: postgres
+          DB_URL: postgres://postgres:postgres@localhost:5432/bridge_test?sslmode=disable
+
       - name: Run tests with coverage and race flag enabled
         run: make test
+        env:
+          APP_ENV: cicd
+          DB_CONNECTION: postgres
+          DB_URL: postgres://postgres:postgres@localhost:5432/bridge_test?sslmode=disable
+          JWT_SYMMETRIC_KEY: 9I0tDC5S789bA6sg&l5c88p@@!i18W5v

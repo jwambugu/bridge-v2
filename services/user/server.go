@@ -3,9 +3,8 @@ package user
 import (
 	"bridge/api/v1/pb"
 	"bridge/core/repository"
+	"bridge/core/rpc_error"
 	"context"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"log"
 )
 
@@ -20,7 +19,7 @@ func (s *server) Create(ctx context.Context, req *pb.CreateUserRequest) (*pb.Cre
 
 	if err := s.rs.UserRepo.Create(ctx, user); err != nil {
 		log.Printf("error creating user: %v", err.Error())
-		return nil, status.Errorf(codes.Internal, "failed to create user: %v", err)
+		return nil, rpc_error.ErrCreateResourceFailed
 	}
 
 	log.Printf("user created successfully - %+v", user)
@@ -32,7 +31,7 @@ func (s *server) Update(ctx context.Context, req *pb.UpdateRequest) (*pb.UpdateR
 
 	if err := s.rs.UserRepo.Update(ctx, user); err != nil {
 		log.Printf("error updating user: %v", err.Error())
-		return nil, status.Errorf(codes.Internal, "failed to update user: %v", err)
+		return nil, rpc_error.ErrServerError
 	}
 	return &pb.UpdateResponse{User: user}, nil
 }

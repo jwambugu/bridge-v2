@@ -204,7 +204,7 @@ func TestServer_Register(t *testing.T) {
 
 				statusFromError, ok := status.FromError(err)
 				assert.True(t, ok)
-				assert.Equal(t, tt.wantCode, statusFromError.Code())
+				assert.Equal(t, tt.wantCode.String(), statusFromError.Code().String())
 				assert.Nil(t, res)
 				return
 			}
