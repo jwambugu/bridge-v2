@@ -77,7 +77,7 @@ func Get[T EnvKey](key Key, fallback T) T {
 
 // GetEnvironment returns the current running environment the application is running on.
 func GetEnvironment() Environment {
-	if env := Get[string]("APP_ENV", ""); env != "" {
+	if env := Get[string](AppEnv, ""); env != "" {
 		return Environment(env)
 	}
 	return Test

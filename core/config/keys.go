@@ -4,7 +4,14 @@ package config
 type Key string
 
 const (
-	DbURL   Key = "DB_URL"
+	AppEnv  Key = "APP_ENV"
 	AppName Key = "APP_NAME"
-	JWTKey  Key = "JWT_SYMMETRIC_KEY"
+	AppURL  Key = "APP_URL"
+
+	DbURL Key = "DB_URL"
+
+	GrpcGWPort Key = "GRPC_GW_PORT"
+	GrpcPort   Key = "GRPC_PORT"
+
+	JWTKey Key = "JWT_SYMMETRIC_KEY"
 )

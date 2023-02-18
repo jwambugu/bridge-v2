@@ -1,6 +1,7 @@
 syntax = "proto3";
 import "user.proto";
 import "validate/validate.proto";
+import "google/api/annotations.proto";
 
 package api.v1;
 option go_package = "./pb";
@@ -29,6 +30,16 @@ message RegisterResponse {
 }
 
 service AuthService {
-  rpc Login(LoginRequest) returns (LoginResponse);
-  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Login(LoginRequest) returns (LoginResponse) {
+    option (google.api.http) = {
+      post: "/v1/auth/login",
+      body: "*"
+    };
+  }
+  rpc Register(RegisterRequest) returns (RegisterResponse){
+    option (google.api.http) = {
+      post: "/v1/auth/register",
+      body: "*"
+    };
+  }
 }
