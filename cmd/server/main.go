@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 )
 
 func main() {
@@ -87,7 +88,7 @@ func main() {
 	l.Info().Msgf("starting gRPC-Gateway on %v", gwServer.Addr)
 
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, os.Kill)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
 		sig := <-sigChan
