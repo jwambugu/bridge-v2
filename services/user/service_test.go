@@ -2,44 +2,21 @@ package user_test
 
 import (
 	"bridge/api/v1/pb"
-	"bridge/pkg/factory"
-	"bridge/pkg/logger"
-	"bridge/pkg/repository"
-	"bridge/pkg/servers"
+	"bridge/internal/config"
+	"bridge/internal/factory"
+	"bridge/internal/logger"
+	"bridge/internal/repository"
+	"bridge/internal/testutils"
 	"bridge/services/auth"
 	"bridge/services/user"
 	"context"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"net"
 	"testing"
 	"time"
 )
-
-func startServer(t *testing.T, rs repository.Store, l zerolog.Logger, jwtManager auth.JWTManager) string {
-	t.Helper()
-
-	var (
-		authSrv = auth.NewAuthService(jwtManager, l, rs)
-		userSrv = user.NewUserService(rs)
-		srv     = servers.NewGrpcSrv()
-	)
-
-	pb.RegisterAuthServiceServer(srv, authSrv)
-	pb.RegisterUserServiceServer(srv, userSrv)
-
-	lis, err := net.Listen("tcp", ":0")
-	assert.NoError(t, err)
-
-	go func() {
-		assert.NoError(t, srv.Serve(lis))
-	}()
-
-	return lis.Addr().String()
-}
 
 func testUserClient(t *testing.T, addr string) pb.UserServiceClient {
 	t.Helper()
@@ -53,8 +30,12 @@ func TestServer_Create(t *testing.T) {
 	rs := repository.NewStore()
 	rs.UserRepo = user.NewTestRepo()
 
+	jwtKey := config.Get[string](config.JWTKey, "")
+	jwtManager, err := auth.NewPasetoToken(jwtKey)
+	assert.NoError(t, err)
+
 	var (
-		srvAddr    = startServer(t, rs, logger.NewTestLogger, nil)
+		srvAddr    = testutils.TestGRPCSrv(t, jwtManager, logger.NewTestLogger, rs)
 		userClient = testUserClient(t, srvAddr)
 		ctx        = context.Background()
 		testUser   = factory.NewUser()
@@ -89,8 +70,12 @@ func TestServer_Update(t *testing.T) {
 	rs := repository.NewStore()
 	rs.UserRepo = user.NewTestRepo(testUser)
 
+	jwtKey := config.Get[string](config.JWTKey, "")
+	jwtManager, err := auth.NewPasetoToken(jwtKey)
+	assert.NoError(t, err)
+
 	var (
-		srvAddr    = startServer(t, rs, logger.NewTestLogger, nil)
+		srvAddr    = testutils.TestGRPCSrv(t, jwtManager, logger.NewTestLogger, rs)
 		userClient = testUserClient(t, srvAddr)
 		ctx        = context.Background()
 

@@ -2,11 +2,12 @@ package main
 
 import (
 	"bridge/api/v1/pb"
-	"bridge/pkg/config"
-	"bridge/pkg/db"
-	"bridge/pkg/logger"
-	"bridge/pkg/repository"
-	"bridge/pkg/servers"
+	"bridge/internal/config"
+	"bridge/internal/db"
+	"bridge/internal/interceptors"
+	"bridge/internal/logger"
+	"bridge/internal/repository"
+	"bridge/internal/servers"
 	"bridge/services/auth"
 	"bridge/services/user"
 	"context"
@@ -47,8 +48,10 @@ func main() {
 	}
 
 	var (
-		authSvc = auth.NewAuthService(jwtManager, l, rs)
-		grpcSrv = servers.NewGrpcSrv()
+		unarySrvInterceptors = interceptors.NewUnaryServerInterceptors()
+		authSvc              = auth.NewService(jwtManager, l, rs)
+		authProcessor        = auth.NewAuthProcessor(jwtManager, rs)
+		grpcSrv              = servers.NewGrpcSrv(authProcessor, unarySrvInterceptors)
 	)
 
 	pb.RegisterAuthServiceServer(grpcSrv, authSvc)
@@ -88,7 +91,7 @@ func main() {
 	l.Info().Msgf("starting gRPC-Gateway on %v", gwServer.Addr)
 
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
 		sig := <-sigChan

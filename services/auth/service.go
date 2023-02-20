@@ -2,9 +2,9 @@ package auth
 
 import (
 	"bridge/api/v1/pb"
-	"bridge/pkg/repository"
-	"bridge/pkg/rpc_error"
-	"bridge/pkg/util"
+	"bridge/internal/repository"
+	"bridge/internal/rpc_error"
+	"bridge/internal/utils"
 	"context"
 	"database/sql"
 	"errors"
@@ -18,6 +18,7 @@ import (
 
 type service struct {
 	pb.UnimplementedAuthServiceServer
+	OverrideAuthFunc
 
 	jwtManager JWTManager
 	l          zerolog.Logger
@@ -32,7 +33,7 @@ func (s *service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Re
 		return nil, rpc_error.ErrPasswordConfirmationMismatch
 	}
 
-	passwordHash, err := util.HashString(req.Password)
+	passwordHash, err := utils.HashString(req.Password)
 	if err != nil {
 		l.Err(err).Msg("failed to hash password")
 		return nil, rpc_error.ErrServerError
@@ -77,7 +78,7 @@ func (s *service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 		return nil, rpc_error.ErrServerError
 	}
 
-	if !util.CompareHash(credentials.Password, req.Password) {
+	if !utils.CompareHash(credentials.Password, req.Password) {
 		l.Err(errors.New("passwords don't match")).Msg("passwords hash mismatch")
 		return nil, rpc_error.ErrUnauthenticated
 	}
@@ -103,7 +104,7 @@ func (s *service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRes
 	}, nil
 }
 
-func NewAuthService(jwtManager JWTManager, l zerolog.Logger, rs repository.Store) pb.AuthServiceServer {
+func NewService(jwtManager JWTManager, l zerolog.Logger, rs repository.Store) pb.AuthServiceServer {
 	return &service{
 		jwtManager: jwtManager,
 		l:          l.With().Str("service", "auth").Logger(),

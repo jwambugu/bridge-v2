@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"bridge/pkg/factory"
+	"bridge/internal/factory"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
