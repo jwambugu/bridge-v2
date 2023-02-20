@@ -2,10 +2,10 @@ package user_test
 
 import (
 	"bridge/api/v1/pb"
-	"bridge/pkg/factory"
-	"bridge/pkg/logger"
-	"bridge/pkg/repository"
-	"bridge/pkg/servers"
+	"bridge/internal/factory"
+	"bridge/internal/logger"
+	"bridge/internal/repository"
+	"bridge/internal/servers"
 	"bridge/services/auth"
 	"bridge/services/user"
 	"context"

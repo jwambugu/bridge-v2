@@ -2,12 +2,12 @@ package auth_test
 
 import (
 	"bridge/api/v1/pb"
-	"bridge/pkg/config"
-	"bridge/pkg/factory"
-	"bridge/pkg/logger"
-	"bridge/pkg/repository"
-	"bridge/pkg/servers"
-	"bridge/pkg/util"
+	"bridge/internal/config"
+	"bridge/internal/factory"
+	"bridge/internal/logger"
+	"bridge/internal/repository"
+	"bridge/internal/servers"
+	"bridge/internal/util"
 	"bridge/services/auth"
 	"bridge/services/user"
 	"context"

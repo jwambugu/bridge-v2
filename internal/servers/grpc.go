@@ -1,7 +1,7 @@
 package servers
 
 import (
-	"bridge/pkg/servers/interceptors"
+	"bridge/internal/servers/interceptors"
 	"google.golang.org/grpc"
 )
 

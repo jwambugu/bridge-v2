@@ -1,7 +1,7 @@
 package db
 
 import (
-	"bridge/pkg/config"
+	"bridge/internal/config"
 	"errors"
 	"fmt"
 	"github.com/jmoiron/sqlx"

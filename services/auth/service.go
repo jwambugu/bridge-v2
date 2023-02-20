@@ -2,9 +2,9 @@ package auth
 
 import (
 	"bridge/api/v1/pb"
-	"bridge/pkg/repository"
-	"bridge/pkg/rpc_error"
-	"bridge/pkg/util"
+	"bridge/internal/repository"
+	"bridge/internal/rpc_error"
+	"bridge/internal/util"
 	"context"
 	"database/sql"
 	"errors"

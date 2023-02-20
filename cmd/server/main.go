@@ -2,11 +2,11 @@ package main
 
 import (
 	"bridge/api/v1/pb"
-	"bridge/pkg/config"
-	"bridge/pkg/db"
-	"bridge/pkg/logger"
-	"bridge/pkg/repository"
-	"bridge/pkg/servers"
+	"bridge/internal/config"
+	"bridge/internal/db"
+	"bridge/internal/logger"
+	"bridge/internal/repository"
+	"bridge/internal/servers"
 	"bridge/services/auth"
 	"bridge/services/user"
 	"context"

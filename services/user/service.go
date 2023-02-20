@@ -2,8 +2,8 @@ package user
 
 import (
 	"bridge/api/v1/pb"
-	"bridge/pkg/repository"
-	"bridge/pkg/rpc_error"
+	"bridge/internal/repository"
+	"bridge/internal/rpc_error"
 	"context"
 	"log"
 )
