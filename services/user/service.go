@@ -4,12 +4,14 @@ import (
 	"bridge/api/v1/pb"
 	"bridge/internal/repository"
 	"bridge/internal/rpc_error"
+	"bridge/services/auth"
 	"context"
 	"log"
 )
 
 type service struct {
 	pb.UnimplementedUserServiceServer
+	auth.OverrideAuthFunc
 
 	rs repository.Store
 }
@@ -36,7 +38,7 @@ func (s *service) Update(ctx context.Context, req *pb.UpdateRequest) (*pb.Update
 	return &pb.UpdateResponse{User: user}, nil
 }
 
-func NewUserService(rs repository.Store) pb.UserServiceServer {
+func NewService(rs repository.Store) pb.UserServiceServer {
 	return &service{
 		rs: rs,
 	}

@@ -6,40 +6,18 @@ import (
 	"bridge/internal/factory"
 	"bridge/internal/logger"
 	"bridge/internal/repository"
-	"bridge/internal/servers"
-	"bridge/internal/util"
+	"bridge/internal/testutils"
+	"bridge/internal/utils"
 	"bridge/services/auth"
 	"bridge/services/user"
 	"context"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
-	"net"
 	"testing"
 )
-
-func startServer(t *testing.T, rs repository.Store, l zerolog.Logger, jwtManager auth.JWTManager) string {
-	t.Helper()
-
-	var (
-		authSrv = auth.NewAuthService(jwtManager, l, rs)
-		srv     = servers.NewGrpcSrv()
-	)
-
-	pb.RegisterAuthServiceServer(srv, authSrv)
-
-	lis, err := net.Listen("tcp", ":0")
-	assert.NoError(t, err)
-
-	go func() {
-		assert.NoError(t, srv.Serve(lis))
-	}()
-
-	return lis.Addr().String()
-}
 
 func testAuthClient(t *testing.T, addr string) pb.AuthServiceClient {
 	t.Helper()
@@ -103,7 +81,7 @@ func TestServer_Login(t *testing.T) {
 			assert.NoError(t, err)
 
 			var (
-				srvAddr    = startServer(t, rs, logger.NewTestLogger, jwtManager)
+				srvAddr    = testutils.TestGRPCSrv(t, jwtManager, logger.NewTestLogger, rs)
 				authClient = testAuthClient(t, srvAddr)
 				ctx        = context.Background()
 
@@ -191,7 +169,7 @@ func TestServer_Register(t *testing.T) {
 			assert.NoError(t, err)
 
 			var (
-				srvAddr    = startServer(t, rs, logger.NewTestLogger, jwtManager)
+				srvAddr    = testutils.TestGRPCSrv(t, jwtManager, logger.NewTestLogger, rs)
 				authClient = testAuthClient(t, srvAddr)
 				ctx        = context.Background()
 				req        = tt.createReq()
@@ -221,7 +199,7 @@ func TestServer_Register(t *testing.T) {
 			credentials, err := rs.UserRepo.Authenticate(ctx, req.Email)
 			assert.NoError(t, err)
 			assert.NotNil(t, credentials)
-			assert.True(t, util.CompareHash(credentials.Password, req.Password))
+			assert.True(t, utils.CompareHash(credentials.Password, req.Password))
 		})
 	}
 }
