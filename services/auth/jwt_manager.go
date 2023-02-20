@@ -2,7 +2,7 @@ package auth
 
 import (
 	"bridge/api/v1/pb"
-	"bridge/core/config"
+	"bridge/pkg/config"
 	"errors"
 	"fmt"
 	"github.com/o1egl/paseto"
