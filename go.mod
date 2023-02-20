@@ -4,7 +4,6 @@ go 1.18
 
 require (
 	github.com/envoyproxy/protoc-gen-validate v0.9.1
-	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.0
 	github.com/jaswdr/faker v1.15.0
 	github.com/jmoiron/sqlx v1.3.5

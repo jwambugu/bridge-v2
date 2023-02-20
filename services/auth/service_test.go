@@ -2,12 +2,12 @@ package auth_test
 
 import (
 	"bridge/api/v1/pb"
-	"bridge/core/config"
-	"bridge/core/factory"
-	"bridge/core/logger"
-	"bridge/core/repository"
-	"bridge/core/server"
-	"bridge/core/util"
+	"bridge/pkg/config"
+	"bridge/pkg/factory"
+	"bridge/pkg/logger"
+	"bridge/pkg/repository"
+	"bridge/pkg/servers"
+	"bridge/pkg/util"
 	"bridge/services/auth"
 	"bridge/services/user"
 	"context"
@@ -25,8 +25,8 @@ func startServer(t *testing.T, rs repository.Store, l zerolog.Logger, jwtManager
 	t.Helper()
 
 	var (
-		authSrv = auth.NewServer(jwtManager, l, rs)
-		srv     = server.NewGrpcSrv()
+		authSrv = auth.NewAuthService(jwtManager, l, rs)
+		srv     = servers.NewGrpcSrv()
 	)
 
 	pb.RegisterAuthServiceServer(srv, authSrv)

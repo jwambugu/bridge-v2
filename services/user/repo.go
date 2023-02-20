@@ -2,9 +2,9 @@ package user
 
 import (
 	"bridge/api/v1/pb"
-	"bridge/core/db"
-	"bridge/core/models"
-	"bridge/core/repository"
+	"bridge/pkg/db"
+	"bridge/pkg/models"
+	"bridge/pkg/repository"
 	"context"
 	"fmt"
 	"github.com/jmoiron/sqlx"

@@ -2,9 +2,9 @@ package auth
 
 import (
 	"bridge/api/v1/pb"
-	"bridge/core/repository"
-	"bridge/core/rpc_error"
-	"bridge/core/util"
+	"bridge/pkg/repository"
+	"bridge/pkg/rpc_error"
+	"bridge/pkg/util"
 	"context"
 	"database/sql"
 	"errors"
@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-type server struct {
+type service struct {
 	pb.UnimplementedAuthServiceServer
 
 	jwtManager JWTManager
@@ -24,7 +24,7 @@ type server struct {
 	rs         repository.Store
 }
 
-func (s *server) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
+func (s *service) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
 	l := s.l.With().Str("action", "register user").Str("req", fmt.Sprintf("%+v", req)).Logger()
 
 	if req.Password != req.ConfirmPassword {
@@ -65,7 +65,7 @@ func (s *server) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Reg
 	}, nil
 }
 
-func (s *server) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
+func (s *service) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
 	l := s.l.With().Str("action", "login user").Str("req", fmt.Sprintf("%+v", req)).Logger()
 
 	credentials, err := s.rs.UserRepo.Authenticate(ctx, req.GetEmail())
@@ -103,8 +103,8 @@ func (s *server) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResp
 	}, nil
 }
 
-func NewServer(jwtManager JWTManager, l zerolog.Logger, rs repository.Store) pb.AuthServiceServer {
-	return &server{
+func NewAuthService(jwtManager JWTManager, l zerolog.Logger, rs repository.Store) pb.AuthServiceServer {
+	return &service{
 		jwtManager: jwtManager,
 		l:          l.With().Str("service", "auth").Logger(),
 		rs:         rs,

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bridge/core/config"
-	"bridge/core/db"
+	"bridge/pkg/config"
+	"bridge/pkg/db"
 	"flag"
 	"log"
 	"os"
@@ -46,7 +46,7 @@ func main() {
 		log.Fatalf("Command %q cannot be applied on environment %q", command, env)
 	}
 
-	if err = goose.Run(command, dbConn.DB, "./core/db/migrations", arguments...); err != nil {
+	if err = goose.Run(command, dbConn.DB, "./pkg/db/migrations", arguments...); err != nil {
 		log.Fatalf("goose run %v: %v", command, err)
 	}
 }
