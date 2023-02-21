@@ -5,7 +5,6 @@ import (
 	"bridge/internal/repository"
 	"bridge/internal/rpc_error"
 	"bridge/internal/utils"
-	"bridge/services/auth"
 	"context"
 	"github.com/rs/zerolog"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -13,7 +12,6 @@ import (
 )
 
 type service struct {
-	auth.OverrideAuthFunc
 	pb.UnimplementedUserServiceServer
 
 	l  zerolog.Logger
