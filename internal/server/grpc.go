@@ -1,13 +1,13 @@
-package servers
+package server
 
 import (
-	interceptors2 "bridge/internal/interceptors"
+	"bridge/internal/interceptors"
 	"bridge/services/auth"
 	"google.golang.org/grpc"
 )
 
 // NewGrpcSrv creates a new grpc server with required server options set up.
-func NewGrpcSrv(authFunc auth.Authenticator, unarySrvInterceptors interceptors2.UnaryServerInterceptor) *grpc.Server {
+func NewGrpcSrv(authFunc auth.Authenticator, unarySrvInterceptors interceptors.UnaryServerInterceptor) *grpc.Server {
 	opts := []grpc.ServerOption{
 		grpc.ChainUnaryInterceptor(
 			unarySrvInterceptors.UnaryServerValidator(),

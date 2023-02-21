@@ -7,7 +7,7 @@ import (
 	"bridge/internal/interceptors"
 	"bridge/internal/logger"
 	"bridge/internal/repository"
-	"bridge/internal/servers"
+	"bridge/internal/server"
 	"bridge/services/auth"
 	"bridge/services/user"
 	"context"
@@ -50,8 +50,8 @@ func main() {
 	var (
 		unarySrvInterceptors = interceptors.NewUnaryServerInterceptors()
 		authSvc              = auth.NewService(jwtManager, l, rs)
-		authProcessor        = auth.NewAuthProcessor(jwtManager, rs)
-		grpcSrv              = servers.NewGrpcSrv(authProcessor, unarySrvInterceptors)
+		authProcessor        = auth.NewAuthProcessor(jwtManager, l, rs)
+		grpcSrv              = server.NewGrpcSrv(authProcessor, unarySrvInterceptors)
 	)
 
 	pb.RegisterAuthServiceServer(grpcSrv, authSvc)
@@ -61,10 +61,10 @@ func main() {
 		l.Fatal().Err(err).Msg("failed to start net listener")
 	}
 
-	l.Info().Msgf("starting grpc servers on %v", grpcPort)
+	l.Info().Msgf("starting grpc server on %v", grpcPort)
 	go func() {
 		if err = grpcSrv.Serve(lis); err != nil {
-			l.Fatal().Err(err).Msg("failed to start grpc servers")
+			l.Fatal().Err(err).Msg("failed to start grpc server")
 		}
 	}()
 
@@ -75,7 +75,7 @@ func main() {
 
 	conn, err := grpc.DialContext(ctx, grpcPort, grpcDialOpts...)
 	if err != nil {
-		l.Fatal().Err(err).Msg("failed to dial grpc servers")
+		l.Fatal().Err(err).Msg("failed to dial grpc server")
 	}
 
 	gmux := runtime.NewServeMux()
@@ -95,16 +95,16 @@ func main() {
 
 	go func() {
 		sig := <-sigChan
-		l.Info().Msgf("shutting down servers, received os signal - %v", sig)
+		l.Info().Msgf("shutting down server, received os signal - %v", sig)
 
 		if err = gwServer.Shutdown(ctx); err != nil {
-			l.Fatal().Err(err).Msg("failed to stop gRPC-Gateway servers")
+			l.Fatal().Err(err).Msg("failed to stop gRPC-Gateway server")
 		}
 
 		grpcSrv.GracefulStop()
 	}()
 
 	if err = gwServer.ListenAndServe(); err != nil {
-		l.Fatal().Err(err).Msg("failed to start gRPC-Gateway servers")
+		l.Fatal().Err(err).Msg("failed to start gRPC-Gateway server")
 	}
 }

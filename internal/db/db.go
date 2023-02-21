@@ -9,7 +9,15 @@ import (
 	_ "github.com/lib/pq"
 )
 
-var ErrInvalidDSN = errors.New("db: dsn cannot be empty") // empty dsn
+var ErrInvalidDSN = errors.New("db: dsn cannot be empty")
+
+type UserTblColumn uint8
+
+const (
+	UserUnknown UserTblColumn = iota
+	UserEmail
+	UserPhoneNumber
+)
 
 // NewConnection attempt to create a database connection with the provided config.DbURL
 func NewConnection() (*sqlx.DB, error) {
