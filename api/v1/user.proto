@@ -1,13 +1,14 @@
 syntax = "proto3";
 import "google/protobuf/timestamp.proto";
+import "validate/validate.proto";
 
 package api.v1;
 option go_package = "./pb";
 
 
 message KYCData {
-  string id_number = 1 [json_name = "id_number"];
-  string kra_pin = 2 [json_name = "kra_pin"];
+  string id_number = 1 [json_name = "id_number", (validate.rules).string = {min_len:7, max_len:8}];
+  string kra_pin = 2 [json_name = "kra_pin", (validate.rules).string = {len:11}];
 }
 
 message UserMeta {
@@ -23,12 +24,12 @@ message User {
     INACTIVE = 4;
   }
 
-  string ID = 1; // @gotags: db:"id"
+  string ID = 1 [json_name = "id"]; // @gotags: db:"id"
   string name = 2; // @gotags: db:"name"
   string email = 3; // @gotags: db:"email"
   string phone_number = 4 [json_name = "phone_number"]; // @gotags: db:"phone_number"
   string password = 5; // @gotags: db:"password"
-  AccountStatus account_status = 6; // @gotags: db:"account_status"
+  AccountStatus account_status = 6 [json_name = "account_status"]; // @gotags: db:"account_status"
   UserMeta meta = 7; // @gotags: db:"meta"
   google.protobuf.Timestamp created_at = 8 [json_name = "created_at"]; // @gotags: db:"created_at"
   google.protobuf.Timestamp updated_at = 9 [json_name = "updated_at"]; // @gotags: db:"updated_at"

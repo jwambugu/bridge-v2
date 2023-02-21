@@ -1,13 +1,14 @@
 syntax = "proto3";
 import "user.proto";
+import "validate/validate.proto";
 
 package api.v1;
 option go_package = "./pb";
 
 message CreateUserRequest{
-  string Name = 1;
-  string Email = 2;
-  string PhoneNumber = 3;
+  string name = 1 [(validate.rules).string = {min_len:3}];
+  string email = 2 [(validate.rules).string = {email:true}];
+  string phone_number = 3 [json_name = "phone_number", (validate.rules).string = {len:12}];
   UserMeta meta = 4;
 }
 
