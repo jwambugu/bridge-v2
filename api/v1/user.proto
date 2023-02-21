@@ -7,8 +7,8 @@ option go_package = "./pb";
 
 
 message KYCData {
-  string id_number = 1 [json_name = "id_number", (validate.rules).string = {min_len:7, max_len:8}];
-  string kra_pin = 2 [json_name = "kra_pin", (validate.rules).string = {len:11}];
+  string id_number = 1 [json_name = "id_number"];
+  string kra_pin = 2 [json_name = "kra_pin"];
 }
 
 message UserMeta {

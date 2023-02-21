@@ -2,6 +2,7 @@ package testutils
 
 import (
 	"bridge/api/v1/pb"
+	"bridge/internal/client"
 	"bridge/internal/interceptors"
 	"bridge/internal/repository"
 	"bridge/internal/server"
@@ -9,6 +10,8 @@ import (
 	"bridge/services/user"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"net"
 	"testing"
 )
@@ -45,4 +48,20 @@ func TestGRPCSrv(
 	}()
 
 	return lis.Addr().String()
+}
+
+func TestClientConnWithToken(t *testing.T, addr, email, password string) *grpc.ClientConn {
+	t.Helper()
+	asserts := assert.New(t)
+
+	transportOpt := grpc.WithTransportCredentials(insecure.NewCredentials())
+	cc, err := grpc.Dial(addr, transportOpt)
+	asserts.NoError(err)
+
+	authClient := client.NewClient(cc, email, password)
+	authInterceptor := client.NewAuthInterceptor(authClient)
+
+	cc, err = grpc.Dial(addr, transportOpt, grpc.WithChainUnaryInterceptor(authInterceptor.UnaryInterceptor()))
+	asserts.NoError(err)
+	return cc
 }

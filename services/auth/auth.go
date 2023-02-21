@@ -41,8 +41,8 @@ type Authenticator interface {
 }
 
 var (
-	headerAuthorize     = "authorization"
 	authorizationScheme = "bearer"
+	HeaderAuthorize     = "authorization"
 )
 
 type authProcessor struct {
@@ -61,7 +61,7 @@ func (ap *authProcessor) Authenticate() AuthenticatorFunc {
 			return ctx, rpc_error.ErrMissingCtxAuthMetadata
 		}
 
-		header := md.Get(headerAuthorize)
+		header := md.Get(HeaderAuthorize)
 		if len(header) != 1 {
 			l.Error().Msg("missing auth header")
 			return ctx, rpc_error.ErrMissingAuthHeader
@@ -126,4 +126,9 @@ type OverrideAuthFunc struct{}
 
 func (OverrideAuthFunc) AuthenticatorFuncOverride(ctx context.Context, _ string) (context.Context, error) {
 	return ctx, nil
+}
+
+// AppendBearerPrefix appends `bearer` prefix to the token
+func AppendBearerPrefix(token string) string {
+	return `bearer ` + token
 }

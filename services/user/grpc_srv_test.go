@@ -12,21 +12,11 @@ import (
 	"bridge/services/user"
 	"context"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"testing"
 	"time"
 )
-
-func testUserClient(t *testing.T, addr string) pb.UserServiceClient {
-	t.Helper()
-
-	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	assert.NoError(t, err)
-	return pb.NewUserServiceClient(conn)
-}
 
 func TestServer_Create(t *testing.T) {
 	var (
@@ -66,8 +56,10 @@ func TestServer_Create(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
+			admin := factory.NewUser()
+
 			rs := repository.NewStore()
-			rs.UserRepo = user.NewTestRepo()
+			rs.UserRepo = user.NewTestRepo(admin)
 
 			jwtKey := config.Get[string](config.JWTKey, "")
 			jwtManager, err := auth.NewPasetoToken(jwtKey)
@@ -75,7 +67,8 @@ func TestServer_Create(t *testing.T) {
 
 			var (
 				srvAddr    = testutils.TestGRPCSrv(t, jwtManager, l, rs)
-				userClient = testUserClient(t, srvAddr)
+				cc         = testutils.TestClientConnWithToken(t, srvAddr, admin.Email, factory.DefaultPassword)
+				userClient = pb.NewUserServiceClient(cc)
 				ctx        = context.Background()
 				u          = tt.getUser()
 				req        = &pb.CreateUserRequest{
@@ -125,7 +118,8 @@ func TestServer_Update(t *testing.T) {
 
 	var (
 		srvAddr    = testutils.TestGRPCSrv(t, jwtManager, logger.NewTestLogger, rs)
-		userClient = testUserClient(t, srvAddr)
+		cc         = testutils.TestClientConnWithToken(t, srvAddr, testUser.Email, factory.DefaultPassword)
+		userClient = pb.NewUserServiceClient(cc)
 		ctx        = context.Background()
 
 		req = &pb.UpdateRequest{
