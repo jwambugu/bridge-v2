@@ -151,12 +151,16 @@ func TestServer_Register(t *testing.T) {
 		{
 			name: "request fails email already exists",
 			createReq: func() *pb.RegisterRequest {
-				u := factory.NewUser()
-				user.NewTestRepo(u)
+				var (
+					u  = factory.NewUser()
+					u1 = factory.NewUser()
+				)
+
+				user.NewTestRepo(u1)
 
 				return &pb.RegisterRequest{
 					Name:            u.Name,
-					Email:           u.Email,
+					Email:           u1.Email,
 					PhoneNumber:     u.PhoneNumber,
 					Password:        factory.DefaultPassword,
 					ConfirmPassword: factory.DefaultPassword,
@@ -171,6 +175,7 @@ func TestServer_Register(t *testing.T) {
 					u  = factory.NewUser()
 					u1 = factory.NewUser()
 				)
+
 				user.NewTestRepo(u1)
 
 				return &pb.RegisterRequest{
@@ -213,6 +218,8 @@ func TestServer_Register(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			rs := repository.NewStore()
 			rs.UserRepo = user.NewTestRepo()
 
