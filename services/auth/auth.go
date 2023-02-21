@@ -7,6 +7,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/rs/zerolog"
 	"google.golang.org/grpc/metadata"
 	"strings"
 )
@@ -46,32 +47,40 @@ var (
 
 type authProcessor struct {
 	jwtManager JWTManager
+	l          zerolog.Logger
 	rs         repository.Store
 }
 
 func (ap *authProcessor) Authenticate() AuthenticatorFunc {
 	return func(ctx context.Context) (context.Context, error) {
+		l := ap.l.With().Str("action", "authenticating request").Logger()
+
 		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
+			l.Error().Msg("missing metadata")
 			return ctx, rpc_error.ErrMissingCtxAuthMetadata
 		}
 
 		header := md.Get(headerAuthorize)
 		if len(header) != 1 {
+			l.Error().Msg("missing auth header")
 			return ctx, rpc_error.ErrMissingAuthHeader
 		}
 
 		splits := strings.SplitN(header[0], " ", 2)
 		if len(splits) < 2 {
+			l.Error().Interface("header", header).Msg("malformed token")
 			return ctx, rpc_error.ErrMissingMalformedToken
 		}
 
 		if !strings.EqualFold(splits[0], authorizationScheme) {
+			l.Error().Interface("authorization_scheme", splits[0]).Msg("invalid authorization scheme")
 			return ctx, rpc_error.ErrInvalidAuthorizationScheme
 		}
 
 		claims, err := ap.jwtManager.Verify(splits[1])
 		if err != nil {
+			l.Error().Err(err).Msg("failed to verify token")
 			switch err {
 			case ErrInvalidToken:
 				return nil, rpc_error.ErrInvalidToken
@@ -82,8 +91,12 @@ func (ap *authProcessor) Authenticate() AuthenticatorFunc {
 			}
 		}
 
-		u, err := ap.rs.UserRepo.Find(ctx, claims.User.ID)
+		l = l.With().Interface("claims", claims).Logger()
+
+		u, err := ap.rs.UserRepo.FindByID(ctx, claims.User.ID)
 		if err != nil {
+			l.Error().Err(err).Msg("failed to find user")
+
 			if errors.Is(err, sql.ErrNoRows) {
 				return ctx, rpc_error.ErrUnauthenticated
 			}
@@ -91,6 +104,7 @@ func (ap *authProcessor) Authenticate() AuthenticatorFunc {
 		}
 
 		if u.AccountStatus == pb.User_INACTIVE {
+			l.Error().Msg("inactive user account status")
 			return ctx, rpc_error.ErrInactiveAccount
 		}
 
@@ -99,9 +113,10 @@ func (ap *authProcessor) Authenticate() AuthenticatorFunc {
 }
 
 // NewAuthProcessor instantiates a new Authenticator
-func NewAuthProcessor(jwtManager JWTManager, rs repository.Store) Authenticator {
+func NewAuthProcessor(jwtManager JWTManager, l zerolog.Logger, rs repository.Store) Authenticator {
 	return &authProcessor{
 		jwtManager: jwtManager,
+		l:          l.With().Str("service", "auth processor").Logger(),
 		rs:         rs,
 	}
 }
@@ -109,6 +124,6 @@ func NewAuthProcessor(jwtManager JWTManager, rs repository.Store) Authenticator 
 // OverrideAuthFunc overrides global AuthenticatorFunc
 type OverrideAuthFunc struct{}
 
-func (OverrideAuthFunc) AuthenticatorFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {
+func (OverrideAuthFunc) AuthenticatorFuncOverride(ctx context.Context, _ string) (context.Context, error) {
 	return ctx, nil
 }

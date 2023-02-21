@@ -5,7 +5,10 @@ package api.v1;
 option go_package = "./pb";
 
 message CreateUserRequest{
-  User user = 1;
+  string Name = 1;
+  string Email = 2;
+  string PhoneNumber = 3;
+  UserMeta meta = 4;
 }
 
 message CreateUserResponse{

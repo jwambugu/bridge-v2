@@ -6,6 +6,7 @@ import (
 	"bridge/internal/factory"
 	"bridge/internal/logger"
 	"bridge/internal/repository"
+	"bridge/internal/rpc_error"
 	"bridge/internal/testutils"
 	"bridge/internal/utils"
 	"bridge/services/auth"
@@ -28,42 +29,54 @@ func testAuthClient(t *testing.T, addr string) pb.AuthServiceClient {
 }
 
 func TestServer_Login(t *testing.T) {
+	var (
+		l       = logger.NewTestLogger
+		asserts = assert.New(t)
+	)
+
 	tests := []struct {
-		name     string
-		setup    func(t *testing.T) (*pb.User, string)
-		wantCode codes.Code
+		name    string
+		setup   func(t *testing.T) (*pb.User, string)
+		wantErr error
 	}{
 		{
 			name: "user can be authenticated successfully",
 			setup: func(t *testing.T) (*pb.User, string) {
 				t.Helper()
-
-				newUser := factory.NewUser()
-				user.NewTestRepo(newUser)
-				return newUser, factory.DefaultPassword
+				u := factory.NewUser()
+				user.NewTestRepo(u)
+				return u, factory.DefaultPassword
 			},
-			wantCode: codes.OK,
 		},
 		{
 			name: "authentication fails if incorrect password is provided",
 			setup: func(t *testing.T) (*pb.User, string) {
 				t.Helper()
-
-				newUser := factory.NewUser()
-				user.NewTestRepo(newUser)
-				return newUser, "test_password"
+				u := factory.NewUser()
+				user.NewTestRepo(u)
+				return u, "test_password"
 			},
-			wantCode: codes.Unauthenticated,
+			wantErr: rpc_error.ErrUnauthenticated,
 		},
 		{
 			name: "authentication fails if user does not exists",
 			setup: func(t *testing.T) (*pb.User, string) {
 				t.Helper()
-
-				newUser := factory.NewUser()
-				return newUser, "test_password"
+				return factory.NewUser(), "test_password"
 			},
-			wantCode: codes.Unauthenticated,
+			wantErr: rpc_error.ErrUnauthenticated,
+		},
+		{
+			name: "authentication fails if user account is inactive",
+			setup: func(t *testing.T) (*pb.User, string) {
+				t.Helper()
+
+				u := factory.NewUser()
+				u.AccountStatus = pb.User_INACTIVE
+				user.NewTestRepo(u)
+				return u, factory.DefaultPassword
+			},
+			wantErr: rpc_error.ErrInactiveAccount,
 		},
 	}
 
@@ -78,10 +91,10 @@ func TestServer_Login(t *testing.T) {
 
 			jwtKey := config.Get[string](config.JWTKey, "")
 			jwtManager, err := auth.NewPasetoToken(jwtKey)
-			assert.NoError(t, err)
+			asserts.NoError(err)
 
 			var (
-				srvAddr    = testutils.TestGRPCSrv(t, jwtManager, logger.NewTestLogger, rs)
+				srvAddr    = testutils.TestGRPCSrv(t, jwtManager, l, rs)
 				authClient = testAuthClient(t, srvAddr)
 				ctx        = context.Background()
 
@@ -92,30 +105,35 @@ func TestServer_Login(t *testing.T) {
 			)
 
 			res, err := authClient.Login(ctx, req)
-			if tt.wantCode != codes.OK {
+			if wantErr := tt.wantErr; wantErr != nil {
 				statusFromError, ok := status.FromError(err)
-				assert.True(t, ok)
-				assert.Equal(t, codes.Unauthenticated, statusFromError.Code())
-				assert.Nil(t, res)
+				asserts.True(ok)
+				asserts.EqualError(statusFromError.Err(), wantErr.Error())
+				asserts.Nil(res)
 				return
 			}
 
-			assert.NoError(t, err)
-			assert.NotNil(t, res)
+			asserts.NoError(err)
+			asserts.NotNil(res)
 
 			accessTokenPayload, err := jwtManager.Verify(res.AccessToken)
-			assert.NoError(t, err)
-			assert.Equal(t, res.User.ID, accessTokenPayload.Subject)
-			assert.Equal(t, res.User, accessTokenPayload.User)
+			asserts.NoError(err)
+			asserts.Equal(res.User.ID, accessTokenPayload.Subject)
+			asserts.Equal(res.User, accessTokenPayload.User)
 		})
 	}
 }
 
 func TestServer_Register(t *testing.T) {
+	var (
+		l       = logger.NewTestLogger
+		asserts = assert.New(t)
+	)
+
 	tests := []struct {
 		name      string
 		createReq func() *pb.RegisterRequest
-		wantCode  codes.Code
+		wantErr   error
 	}{
 		{
 			name: "registers a user successfully",
@@ -129,7 +147,41 @@ func TestServer_Register(t *testing.T) {
 					ConfirmPassword: factory.DefaultPassword,
 				}
 			},
-			wantCode: codes.OK,
+		},
+		{
+			name: "request fails email already exists",
+			createReq: func() *pb.RegisterRequest {
+				u := factory.NewUser()
+				user.NewTestRepo(u)
+
+				return &pb.RegisterRequest{
+					Name:            u.Name,
+					Email:           u.Email,
+					PhoneNumber:     u.PhoneNumber,
+					Password:        factory.DefaultPassword,
+					ConfirmPassword: factory.DefaultPassword,
+				}
+			},
+			wantErr: rpc_error.ErrEmailExists,
+		},
+		{
+			name: "request fails phone number already exists",
+			createReq: func() *pb.RegisterRequest {
+				var (
+					u  = factory.NewUser()
+					u1 = factory.NewUser()
+				)
+				user.NewTestRepo(u1)
+
+				return &pb.RegisterRequest{
+					Name:            u.Name,
+					Email:           u.Email,
+					PhoneNumber:     u1.PhoneNumber,
+					Password:        factory.DefaultPassword,
+					ConfirmPassword: factory.DefaultPassword,
+				}
+			},
+			wantErr: rpc_error.ErrPhoneNumberExists,
 		},
 		{
 			name: "request fails if passwords don't match",
@@ -143,7 +195,7 @@ func TestServer_Register(t *testing.T) {
 					ConfirmPassword: "DefaultPassword",
 				}
 			},
-			wantCode: codes.InvalidArgument,
+			wantErr: rpc_error.ErrPasswordConfirmationMismatch,
 		},
 		{
 			name: "request fails if validation rules are not met",
@@ -154,7 +206,7 @@ func TestServer_Register(t *testing.T) {
 					Password:    factory.DefaultPassword,
 				}
 			},
-			wantCode: codes.InvalidArgument,
+			wantErr: rpc_error.NewError(codes.InvalidArgument, "invalid RegisterRequest.Name: value length must be at least 3 runes"),
 		},
 	}
 
@@ -166,10 +218,10 @@ func TestServer_Register(t *testing.T) {
 
 			jwtKey := config.Get[string](config.JWTKey, "")
 			jwtManager, err := auth.NewPasetoToken(jwtKey)
-			assert.NoError(t, err)
+			asserts.NoError(err)
 
 			var (
-				srvAddr    = testutils.TestGRPCSrv(t, jwtManager, logger.NewTestLogger, rs)
+				srvAddr    = testutils.TestGRPCSrv(t, jwtManager, l, rs)
 				authClient = testAuthClient(t, srvAddr)
 				ctx        = context.Background()
 				req        = tt.createReq()
@@ -177,29 +229,28 @@ func TestServer_Register(t *testing.T) {
 
 			res, err := authClient.Register(ctx, req)
 
-			if tt.wantCode != codes.OK {
-				assert.Error(t, err)
+			if wantErr := tt.wantErr; wantErr != nil {
+				asserts.Error(err)
 
 				statusFromError, ok := status.FromError(err)
-				assert.True(t, ok)
-				assert.Equal(t, tt.wantCode.String(), statusFromError.Code().String())
-				assert.Nil(t, res)
+				asserts.True(ok)
+				asserts.EqualError(statusFromError.Err(), wantErr.Error())
+				asserts.Nil(res)
 				return
 			}
 
-			assert.NoError(t, err)
+			asserts.NoError(err)
+			asserts.NotNil(res)
 
-			assert.NotNil(t, res)
-
-			gotUser, err := rs.UserRepo.Find(ctx, res.User.ID)
-			assert.NoError(t, err)
-			assert.Equal(t, req.Name, gotUser.Name)
-			assert.Equal(t, req.Email, gotUser.Email)
+			gotUser, err := rs.UserRepo.FindByID(ctx, res.User.ID)
+			asserts.NoError(err)
+			asserts.Equal(req.Name, gotUser.Name)
+			asserts.Equal(req.Email, gotUser.Email)
 
 			credentials, err := rs.UserRepo.Authenticate(ctx, req.Email)
-			assert.NoError(t, err)
-			assert.NotNil(t, credentials)
-			assert.True(t, utils.CompareHash(credentials.Password, req.Password))
+			asserts.NoError(err)
+			asserts.NotNil(credentials)
+			asserts.True(utils.CompareHash(credentials.Password, req.Password))
 		})
 	}
 }

@@ -4,7 +4,7 @@ import (
 	"bridge/api/v1/pb"
 	"bridge/internal/interceptors"
 	"bridge/internal/repository"
-	"bridge/internal/servers"
+	"bridge/internal/server"
 	"bridge/services/auth"
 	"bridge/services/user"
 	"github.com/rs/zerolog"
@@ -24,10 +24,10 @@ func TestGRPCSrv(
 ) string {
 	var (
 		authSvc              = auth.NewService(jwtManager, l, rs)
-		userSvc              = user.NewService(rs)
+		userSvc              = user.NewService(l, rs)
 		unarySrvInterceptors = interceptors.NewUnaryServerInterceptors()
-		authProcessor        = auth.NewAuthProcessor(jwtManager, rs)
-		srv                  = servers.NewGrpcSrv(authProcessor, unarySrvInterceptors)
+		authProcessor        = auth.NewAuthProcessor(jwtManager, l, rs)
+		srv                  = server.NewGrpcSrv(authProcessor, unarySrvInterceptors)
 		asserts              = assert.New(t)
 	)
 

@@ -6,7 +6,8 @@ import (
 )
 
 var (
-	ErrCreateResourceFailed         = NewError(codes.Internal, "Failed to create specified resource.")
+	//ErrCreateResourceFailed         = NewError(codes.Internal, "Failed to create specified resource.")
+	ErrEmailExists                  = NewError(codes.AlreadyExists, "Email is already in use.")
 	ErrExpiredToken                 = NewError(codes.Unauthenticated, "Expired access token provided.")
 	ErrInactiveAccount              = NewError(codes.Unauthenticated, "Account has been deactivated.")
 	ErrInvalidAuthorizationScheme   = NewError(codes.Unauthenticated, "Invalid authorization scheme provided.")
@@ -15,7 +16,8 @@ var (
 	ErrMissingCtxAuthMetadata       = NewError(codes.Unauthenticated, "Missing context authentication metadata.")
 	ErrMissingMalformedToken        = NewError(codes.Unauthenticated, "Malformed authorization token.")
 	ErrPasswordConfirmationMismatch = NewError(codes.InvalidArgument, "The password confirmation does not match.")
-	ErrServerError                  = NewError(codes.Internal, "Internal servers error.")
+	ErrPhoneNumberExists            = NewError(codes.AlreadyExists, "Phone number is already in use.")
+	ErrServerError                  = NewError(codes.Internal, "Internal server error.")
 	ErrUnauthenticated              = NewError(codes.Unauthenticated, codes.Unauthenticated.String())
 )
 
