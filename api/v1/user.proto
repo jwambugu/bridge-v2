@@ -1,6 +1,5 @@
 syntax = "proto3";
 import "google/protobuf/timestamp.proto";
-import "validate/validate.proto";
 
 package api.v1;
 option go_package = "./pb";

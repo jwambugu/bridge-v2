@@ -7,21 +7,21 @@ import (
 	"fmt"
 )
 
-type User struct {
-	*pb.User
+type Category struct {
+	*pb.Category
 }
 
-type UserMeta struct {
-	*pb.UserMeta
+type CategoryMeta struct {
+	*pb.CategoryMeta
 }
 
 // Value implements driver.Valuer which simply returns the JSON-encoded representation of UserMeta.
-func (m *UserMeta) Value() (driver.Value, error) {
+func (m *CategoryMeta) Value() (driver.Value, error) {
 	return json.Marshal(m)
 }
 
 // Scan implement the sql.Scanner which decodes a JSON-encoded value into UserMeta.
-func (m *UserMeta) Scan(value any) error {
+func (m *CategoryMeta) Scan(value any) error {
 	b, ok := value.([]byte)
 	if !ok {
 		return fmt.Errorf("type assertion to []byte failed - got %T", b)
