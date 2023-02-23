@@ -2,6 +2,7 @@ package factory
 
 import (
 	"bridge/api/v1/pb"
+	"bridge/internal/utils"
 	cryptorand "crypto/rand"
 	"encoding/binary"
 	"github.com/jaswdr/faker"
@@ -42,6 +43,25 @@ func NewUser() *pb.User {
 				IdNumber: f.Numerify("#######"),
 				KraPin:   f.RandomStringWithLength(8),
 			},
+		},
+		CreatedAt: timestamppb.New(time.Now()),
+		UpdatedAt: timestamppb.New(time.Now()),
+	}
+}
+
+func NewCategory() *pb.Category {
+	var (
+		f    = faker.NewWithSeed(rand.NewSource(Seed()))
+		name = f.Genre().Name() + ` ` + f.Genre().Name()
+	)
+
+	return &pb.Category{
+		ID:     f.UUID().V4(),
+		Name:   name,
+		Slug:   utils.Slugify(name),
+		Status: pb.Category_ACTIVE,
+		Meta: &pb.CategoryMeta{
+			Icon: f.Internet().URL(),
 		},
 		CreatedAt: timestamppb.New(time.Now()),
 		UpdatedAt: timestamppb.New(time.Now()),

@@ -7,7 +7,7 @@ package api.v1;
 option go_package = "./pb";
 
 message GetCategoryRequest {
-  string slug = 1 [(validate.rules).any = {required:true}];
+  string slug = 1 [(validate.rules).string = {min_len:0}];
 }
 
 message GetCategoryResponse {
