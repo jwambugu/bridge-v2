@@ -10,7 +10,6 @@ import (
 	"bridge/internal/testutils"
 	"bridge/internal/utils"
 	"bridge/services/auth"
-	"bridge/services/user"
 	"context"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
@@ -44,7 +43,7 @@ func TestServer_Login(t *testing.T) {
 			setup: func(t *testing.T) (*pb.User, string) {
 				t.Helper()
 				u := factory.NewUser()
-				user.NewTestRepo(u)
+				repository.NewTestUserRepo(l, u)
 				return u, factory.DefaultPassword
 			},
 		},
@@ -53,7 +52,7 @@ func TestServer_Login(t *testing.T) {
 			setup: func(t *testing.T) (*pb.User, string) {
 				t.Helper()
 				u := factory.NewUser()
-				user.NewTestRepo(u)
+				repository.NewTestUserRepo(l, u)
 				return u, "test_password"
 			},
 			wantErr: rpc_error.ErrUnauthenticated,
@@ -73,7 +72,7 @@ func TestServer_Login(t *testing.T) {
 
 				u := factory.NewUser()
 				u.AccountStatus = pb.User_INACTIVE
-				user.NewTestRepo(u)
+				repository.NewTestUserRepo(l, u)
 				return u, factory.DefaultPassword
 			},
 			wantErr: rpc_error.ErrInactiveAccount,
@@ -86,7 +85,7 @@ func TestServer_Login(t *testing.T) {
 			t.Parallel()
 
 			rs := repository.NewStore()
-			rs.UserRepo = user.NewTestRepo()
+			rs.UserRepo = repository.NewTestUserRepo(l)
 			testUser, password := tt.setup(t)
 
 			jwtKey := config.Get[string](config.JWTKey, "")
@@ -156,7 +155,7 @@ func TestServer_Register(t *testing.T) {
 					u1 = factory.NewUser()
 				)
 
-				user.NewTestRepo(u1)
+				repository.NewTestUserRepo(l, u1)
 
 				return &pb.RegisterRequest{
 					Name:            u.Name,
@@ -176,7 +175,7 @@ func TestServer_Register(t *testing.T) {
 					u1 = factory.NewUser()
 				)
 
-				user.NewTestRepo(u1)
+				repository.NewTestUserRepo(l, u1)
 
 				return &pb.RegisterRequest{
 					Name:            u.Name,
@@ -221,7 +220,7 @@ func TestServer_Register(t *testing.T) {
 			t.Parallel()
 
 			rs := repository.NewStore()
-			rs.UserRepo = user.NewTestRepo()
+			rs.UserRepo = repository.NewTestUserRepo(l)
 
 			jwtKey := config.Get[string](config.JWTKey, "")
 			jwtManager, err := auth.NewPasetoToken(jwtKey)

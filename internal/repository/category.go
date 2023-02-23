@@ -20,7 +20,7 @@ type Category interface {
 	Update(ctx context.Context, category *pb.Category) error
 }
 
-type repo struct {
+type categoryRepo struct {
 	db *sqlx.DB
 	l  zerolog.Logger
 }
@@ -43,7 +43,9 @@ const (
 	WHERE id = $6`
 )
 
-func (r *repo) scanRow(row *sql.Row) (*pb.Category, error) {
+func (r *categoryRepo) scanRow(row *sql.Row) (*pb.Category, error) {
+	l := r.l.With().Str("action", "scan row").Logger()
+
 	var (
 		c                    = &pb.Category{}
 		meta                 = &models.CategoryMeta{}
@@ -60,16 +62,19 @@ func (r *repo) scanRow(row *sql.Row) (*pb.Category, error) {
 		&updatedAt,
 	)
 	if err != nil {
+		l.Err(err).Msg("scan row")
 		return nil, err
 	}
 
 	c.CreatedAt = timestamppb.New(createdAt)
 	c.UpdatedAt = timestamppb.New(updatedAt)
 	c.Meta = meta.CategoryMeta
+
+	l.Info().Str("category_id", c.ID)
 	return c, nil
 }
 
-func (r *repo) Create(ctx context.Context, category *pb.Category) error {
+func (r *categoryRepo) Create(ctx context.Context, category *pb.Category) error {
 	l := r.l.With().Str("action", "create").
 		Interface("category", fmt.Sprintf("%+v", category)).
 		Str("query", _categoryCreate).
@@ -94,7 +99,7 @@ func (r *repo) Create(ctx context.Context, category *pb.Category) error {
 	).Scan(&id)
 
 	if err != nil {
-		l.Err(err).Msg("exec query")
+		l.Err(err).Msg("scan row")
 		return err
 	}
 
@@ -103,7 +108,7 @@ func (r *repo) Create(ctx context.Context, category *pb.Category) error {
 	return nil
 }
 
-func (r *repo) FindByID(ctx context.Context, id string) (*pb.Category, error) {
+func (r *categoryRepo) FindByID(ctx context.Context, id string) (*pb.Category, error) {
 	l := r.l.With().Str("action", "find by id").Str("id", id).Str("query", _categoryFindByID).Logger()
 
 	stmt, err := r.db.PrepareContext(ctx, _categoryFindByID)
@@ -114,13 +119,13 @@ func (r *repo) FindByID(ctx context.Context, id string) (*pb.Category, error) {
 
 	category, err := r.scanRow(stmt.QueryRowContext(ctx, id))
 	if err != nil {
-		l.Err(err).Msg("query row")
+		l.Err(err).Msg("scan row")
 		return nil, err
 	}
 	return category, nil
 }
 
-func (r *repo) FindBySlug(ctx context.Context, slug string) (*pb.Category, error) {
+func (r *categoryRepo) FindBySlug(ctx context.Context, slug string) (*pb.Category, error) {
 	l := r.l.With().Str("action", "find by slug").Str("slug", slug).Str("query", _categoryFindByID).Logger()
 
 	stmt, err := r.db.PrepareContext(ctx, _categoryFindBySlug)
@@ -131,13 +136,13 @@ func (r *repo) FindBySlug(ctx context.Context, slug string) (*pb.Category, error
 
 	category, err := r.scanRow(stmt.QueryRowContext(ctx, slug))
 	if err != nil {
-		l.Err(err).Msg("query row")
+		l.Err(err).Msg("scan row")
 		return nil, err
 	}
 	return category, nil
 }
 
-func (r *repo) Update(ctx context.Context, category *pb.Category) error {
+func (r *categoryRepo) Update(ctx context.Context, category *pb.Category) error {
 
 	var (
 		l = r.l.With().Str("action", "update").
@@ -176,8 +181,8 @@ func (r *repo) Update(ctx context.Context, category *pb.Category) error {
 }
 
 func NewCategoryRepo(db *sqlx.DB, l zerolog.Logger) Category {
-	return &repo{
+	return &categoryRepo{
 		db: db,
-		l:  l.With().Str("repo", "user_sqlx").Logger(),
+		l:  l.With().Str("repo", "category_sqlx").Logger(),
 	}
 }

@@ -22,7 +22,7 @@ func createCategory(ctx context.Context, t *testing.T, c *pb.Category) (reposito
 	)
 
 	dbConn, err := db.NewConnection()
-	asserts.NoError(err)
+	require.NoError(t, err)
 
 	repo := repository.NewCategoryRepo(dbConn, l)
 
@@ -34,13 +34,7 @@ func createCategory(ctx context.Context, t *testing.T, c *pb.Category) (reposito
 
 func TestRepo_Create(t *testing.T) {
 	t.Parallel()
-
-	var (
-		c   = factory.NewCategory()
-		ctx = context.Background()
-	)
-
-	createCategory(ctx, t, c)
+	createCategory(context.Background(), t, factory.NewCategory())
 }
 
 func TestRepo_FindByID(t *testing.T) {

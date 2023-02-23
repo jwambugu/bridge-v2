@@ -9,7 +9,6 @@ import (
 	"bridge/internal/repository"
 	"bridge/internal/server"
 	"bridge/services/auth"
-	"bridge/services/user"
 	"context"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
@@ -36,7 +35,7 @@ func main() {
 	}
 
 	rs := repository.NewStore()
-	rs.UserRepo = user.NewRepo(dbConn)
+	rs.UserRepo = repository.NewUserRepo(dbConn, repoLogger)
 	rs.CategoryRepo = repository.NewCategoryRepo(dbConn, repoLogger)
 
 	var (
