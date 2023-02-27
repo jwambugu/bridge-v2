@@ -52,11 +52,12 @@ func NewUser() *pb.User {
 func NewCategory() *pb.Category {
 	var (
 		f    = faker.NewWithSeed(rand.NewSource(Seed()))
-		name = f.Genre().Name() + ` ` + f.Genre().Name()
+		id   = f.UUID().V4()
+		name = f.Genre().Name() + ` ` + f.Genre().Name() + ` ` + id
 	)
 
 	return &pb.Category{
-		ID:     f.UUID().V4(),
+		ID:     id,
 		Name:   name,
 		Slug:   utils.Slugify(name),
 		Status: pb.Category_ACTIVE,

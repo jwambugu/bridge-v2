@@ -69,6 +69,25 @@ func TestRepo_FindBySlug(t *testing.T) {
 	asserts.Equal(c.Slug, gotCategory.Slug)
 }
 
+func TestRepo_All(t *testing.T) {
+	t.Parallel()
+
+	var (
+		asserts = assert.New(t)
+		l       = logger.NewTestLogger
+		ctx     = context.Background()
+		c       = factory.NewCategory()
+		c1      = factory.NewCategory()
+		c2      = factory.NewCategory()
+		c3      = factory.NewCategory()
+		repo    = repository.NewTestCategoryRepo(l, c, c1, c2, c3)
+	)
+
+	gotCategories, err := repo.All(ctx)
+	require.NoError(t, err)
+	asserts.NotNil(gotCategories)
+}
+
 func TestRepo_FindByUpdate(t *testing.T) {
 	t.Parallel()
 

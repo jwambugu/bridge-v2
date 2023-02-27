@@ -6,7 +6,7 @@ import "category.proto";
 package api.v1;
 option go_package = "./pb";
 
-message GetCategoryRequest {
+message GetCategoryBySlugRequest {
   string slug = 1 [(validate.rules).string = {min_len:0}];
 }
 
@@ -22,6 +22,6 @@ message GetCategoriesResponse{
 
 // PublicService exposes endpoints that don't require auth.
 service PublicService{
-  rpc GetCategory(GetCategoryRequest) returns (GetCategoryResponse);
+  rpc GetCategoryBySlug(GetCategoryBySlugRequest) returns (GetCategoryResponse);
   rpc GetCategories(GetCategoriesRequest) returns (GetCategoriesResponse);
 }
