@@ -9,7 +9,6 @@ import (
 	"bridge/internal/repository"
 	"bridge/internal/server"
 	"bridge/services/auth"
-	"bridge/services/user"
 	"context"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
@@ -24,7 +23,10 @@ import (
 func main() {
 	var (
 		appName = config.Get(config.AppName, "bridge")
-		l       = logger.NewLogger().With().Str("app_name", appName).Logger()
+
+		l          = logger.NewLogger().With().Str("app_name", appName).Logger()
+		svcLogger  = l.With().Str("category", "svc").Logger()
+		repoLogger = l.With().Str("category", "repo").Logger()
 	)
 
 	dbConn, err := db.NewConnection()
@@ -33,7 +35,8 @@ func main() {
 	}
 
 	rs := repository.NewStore()
-	rs.UserRepo = user.NewRepo(dbConn)
+	rs.UserRepo = repository.NewUserRepo(dbConn, repoLogger)
+	rs.CategoryRepo = repository.NewCategoryRepo(dbConn, repoLogger)
 
 	var (
 		ctx        = context.Background()
@@ -49,8 +52,8 @@ func main() {
 
 	var (
 		unarySrvInterceptors = interceptors.NewUnaryServerInterceptors()
-		authSvc              = auth.NewService(jwtManager, l, rs)
-		authProcessor        = auth.NewAuthProcessor(jwtManager, l, rs)
+		authSvc              = auth.NewService(jwtManager, svcLogger, rs)
+		authProcessor        = auth.NewAuthProcessor(jwtManager, svcLogger, rs)
 		grpcSrv              = server.NewGrpcSrv(authProcessor, unarySrvInterceptors)
 	)
 

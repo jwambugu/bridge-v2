@@ -9,7 +9,6 @@ import (
 	"bridge/internal/rpc_error"
 	"bridge/internal/testutils"
 	"bridge/services/auth"
-	"bridge/services/user"
 	"context"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/status"
@@ -43,7 +42,7 @@ func TestServer_Create(t *testing.T) {
 					u1 = factory.NewUser()
 				)
 
-				user.NewTestRepo(u1)
+				repository.NewTestUserRepo(l, u1)
 				u.Email = u1.Email
 				return u
 			},
@@ -59,7 +58,7 @@ func TestServer_Create(t *testing.T) {
 			admin := factory.NewUser()
 
 			rs := repository.NewStore()
-			rs.UserRepo = user.NewTestRepo(admin)
+			rs.UserRepo = repository.NewTestUserRepo(l, admin)
 
 			jwtKey := config.Get[string](config.JWTKey, "")
 			jwtManager, err := auth.NewPasetoToken(jwtKey)
@@ -108,9 +107,10 @@ func TestServer_Create(t *testing.T) {
 }
 
 func TestServer_Update(t *testing.T) {
-	testUser := factory.NewUser()
+	l := logger.NewTestLogger
+	u := factory.NewUser()
 	rs := repository.NewStore()
-	rs.UserRepo = user.NewTestRepo(testUser)
+	rs.UserRepo = repository.NewTestUserRepo(l, u)
 
 	jwtKey := config.Get[string](config.JWTKey, "")
 	jwtManager, err := auth.NewPasetoToken(jwtKey)
@@ -118,16 +118,16 @@ func TestServer_Update(t *testing.T) {
 
 	var (
 		srvAddr    = testutils.TestGRPCSrv(t, jwtManager, logger.NewTestLogger, rs)
-		cc         = testutils.TestClientConnWithToken(t, srvAddr, testUser.Email, factory.DefaultPassword)
+		cc         = testutils.TestClientConnWithToken(t, srvAddr, u.Email, factory.DefaultPassword)
 		userClient = pb.NewUserServiceClient(cc)
 		ctx        = context.Background()
 
 		req = &pb.UpdateRequest{
 			User: &pb.User{
-				ID:            testUser.ID,
+				ID:            u.ID,
 				Name:          "Rick Sanchez",
-				Email:         testUser.Email,
-				PhoneNumber:   testUser.PhoneNumber,
+				Email:         u.Email,
+				PhoneNumber:   u.PhoneNumber,
 				AccountStatus: pb.User_ACTIVE,
 				Meta: &pb.UserMeta{
 					KycData: &pb.KYCData{

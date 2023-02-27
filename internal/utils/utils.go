@@ -6,6 +6,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/grpc/codes"
 	"math/rand"
+	"regexp"
+	"strings"
 	"time"
 )
 
@@ -13,7 +15,10 @@ const BcryptCost = bcrypt.DefaultCost
 
 const charset = "abcdefghjklmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ123456789"
 
-var seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+var (
+	seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+	strReg     = regexp.MustCompile("[^a-z0-9]+")
+)
 
 // HashString hashes the provided string returning the hashed value.
 func HashString(s string) (string, error) {
@@ -50,4 +55,8 @@ func StringWithCharset(length int, charset string) string {
 		b[i] = charset[seededRand.Intn(len(charset))]
 	}
 	return string(b)
+}
+
+func Slugify(s string) string {
+	return strings.Trim(strReg.ReplaceAllString(strings.ToLower(s), "-"), "-")
 }

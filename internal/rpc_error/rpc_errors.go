@@ -19,6 +19,7 @@ var (
 	ErrPhoneNumberExists            = NewError(codes.AlreadyExists, "Phone number is already in use.")
 	ErrServerError                  = NewError(codes.Internal, "Internal server error.")
 	ErrUnauthenticated              = NewError(codes.Unauthenticated, codes.Unauthenticated.String())
+	ErrCategoryNotFound             = NewError(codes.NotFound, "Category not found.")
 )
 
 // NewError creates an error representing code and msg.
