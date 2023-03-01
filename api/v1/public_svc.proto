@@ -1,24 +1,10 @@
 syntax = "proto3";
 
-import "validate/validate.proto";
-import "category.proto";
+import "category_svc.proto";
 
 package api.v1;
 option go_package = "./pb";
 
-message GetCategoryBySlugRequest {
-  string slug = 1 [(validate.rules).string = {min_len:0}];
-}
-
-message GetCategoryResponse {
-  Category category = 1;
-}
-
-message GetCategoriesRequest {}
-
-message GetCategoriesResponse{
-  repeated Category categories = 1;
-}
 
 // PublicService exposes endpoints that don't require auth.
 service PublicService{

@@ -2,6 +2,8 @@ package utils
 
 import (
 	"bridge/internal/rpc_error"
+	"database/sql"
+	"errors"
 	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/grpc/codes"
@@ -42,6 +44,11 @@ func ParseDBError(err error) error {
 			return rpc_error.NewError(codes.AlreadyExists, v.Detail)
 		}
 	}
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return rpc_error.ErrResourceNotFound
+	}
+
 	return rpc_error.ErrServerError
 }
 
