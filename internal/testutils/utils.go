@@ -7,6 +7,7 @@ import (
 	"bridge/internal/repository"
 	"bridge/internal/server"
 	"bridge/services/auth"
+	"bridge/services/category"
 	"bridge/services/public"
 	"bridge/services/user"
 	"github.com/rs/zerolog"
@@ -27,9 +28,10 @@ func TestGRPCSrv(
 	rs repository.Store,
 ) string {
 	var (
-		authSvc   = auth.NewService(jwtManager, l, rs)
-		userSvc   = user.NewService(l, rs)
-		publicSvc = public.NewService(l, rs)
+		authSvc     = auth.NewService(jwtManager, l, rs)
+		userSvc     = user.NewService(l, rs)
+		publicSvc   = public.NewService(l, rs)
+		categorySvc = category.NewService(l, rs)
 
 		unarySrvInterceptors = interceptors.NewUnaryServerInterceptors()
 		authProcessor        = auth.NewAuthProcessor(jwtManager, l, rs)
@@ -40,6 +42,7 @@ func TestGRPCSrv(
 	pb.RegisterAuthServiceServer(srv, authSvc)
 	pb.RegisterUserServiceServer(srv, userSvc)
 	pb.RegisterPublicServiceServer(srv, publicSvc)
+	pb.RegisterCategoryServiceServer(srv, categorySvc)
 
 	var err error
 	if lis == nil {
