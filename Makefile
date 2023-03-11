@@ -25,3 +25,11 @@ audit:
 .PHONY: test
 test:
 	go clean -testcache && go test -cover -race ./...
+
+.PHONY: docker-build
+docker-build:
+	docker build -t bridge --no-cache .
+
+.PHONY: compose-up
+compose-up:
+	docker-compose up -d --build
