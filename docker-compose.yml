@@ -1,0 +1,47 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15.2-alpine3.17
+    restart: unless-stopped
+    hostname: postgres
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=secret
+      - POSTGRES_DB=bridge
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./storage/postgres:/var/lib/postgresql/data
+    networks:
+      - bridge_network
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    environment:
+      - DB_URL=postgres://postgres:secret@postgres:5432/bridge?sslmode=disable
+      - JWT_SYMMETRIC_KEY=9I0tDC5S789bA6sg&l5c88p@@!i18W5v
+      - GRPC_PORT=:8000
+      - GRPC_GW_ADDR=0.0.0.0:8001
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - bridge_network
+    entrypoint: [ "/app/start.sh" ]
+    command: [ "/app/server" ]
+
+networks:
+  bridge_network:
+    external: false
+    name: bridge_network
