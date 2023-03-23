@@ -24,7 +24,7 @@ func main() {
 	var (
 		appName = config.Get(config.AppName, "bridge")
 
-		l          = logger.NewLogger().With().Str("app_name", appName).Logger()
+		l          = logger.NewLogger().With().Str("app_name", appName).Interface("env", config.GetEnvironment()).Logger()
 		svcLogger  = l.With().Str("category", "svc").Logger()
 		repoLogger = l.With().Str("category", "repo").Logger()
 	)
