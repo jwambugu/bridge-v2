@@ -29,7 +29,10 @@ services:
       - "8000:8000"
       - "8001:8001"
     environment:
-      - DB_URL=postgres://postgres:secret@postgres:5432/bridge?sslmode=disable
+      - DB_HOST=postgres:5432
+      - DB_USER=postgres
+      - DB_PASSWORD=secret
+      - DB_NAME=bridge
       - JWT_SYMMETRIC_KEY=9I0tDC5S789bA6sg&l5c88p@@!i18W5v
       - GRPC_PORT=:8000
       - GRPC_GW_ADDR=0.0.0.0:8001
