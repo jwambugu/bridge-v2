@@ -9,6 +9,9 @@ on:
   pull_request:
     branches: [ "main" ]
 
+env:
+  APP_ENV: cicd
+
 jobs:
   test:
     services:
@@ -16,7 +19,7 @@ jobs:
         image: postgres
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: secret
           POSTGRES_DB: bridge_test
         ports:
           - 5432:5432
@@ -54,12 +57,3 @@ jobs:
 
       - name: Run tests with coverage and race flag enabled
         run: make test
-        env:
-          APP_ENV: cicd
-          DB_CONNECTION: postgres
-          DB_HOST: postgres:5432
-          DB_USER: postgres
-          DB_PASSWORD: postgres
-          DB_NAME: bridge_test
-          #          DB_URL: postgres://postgres:postgres@localhost:5432/bridge_test?sslmode=disable
-          JWT_SYMMETRIC_KEY: 9I0tDC5S789bA6sg&l5c88p@@!i18W5v
