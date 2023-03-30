@@ -28,7 +28,7 @@ test:
 
 .PHONY: docker-build
 docker-build:
-	docker build -t bridge --no-cache .
+	docker build -t jwambugu/bridge-v1 --no-cache .
 
 .PHONY: compose-up
 compose-up:
