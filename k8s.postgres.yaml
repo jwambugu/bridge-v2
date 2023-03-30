@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bridge-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bridge-postgres
+  template:
+    metadata:
+      labels:
+        app: bridge-postgres
+    spec:
+      containers:
+        - name: bridge-postgres
+          imagePullPolicy: IfNotPresent
+          image: postgres:15.2-alpine3.17
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: secret
+            - name: POSTGRES_DB
+              value: bridge
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+                  apiVersion: v1
+          resources:
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          ports:
+            - containerPort: 5432
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bridge-postgres
+spec:
+  selector:
+    app: bridge-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP

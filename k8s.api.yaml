@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bridge-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bridge-api
+  template:
+    metadata:
+      labels:
+        app: bridge-api
+    spec:
+      containers:
+        - name: bridge-api
+          image: jwambugu/bridge-v1:latest
+          imagePullPolicy: Always
+          env:
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  key: database_url
+                  name: bridge-api-configmap
+
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  key: postgres_db_user
+                  name: bridge-api-secrets
+
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: postgres_db_password
+                  name: bridge-api-secrets
+
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  key: database_name
+                  name: bridge-api-configmap
+
+            - name: JWT_SYMMETRIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: jwt_symmetric_key
+                  name: bridge-api-secrets
+          resources:
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          ports:
+            - containerPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bridge-api
+spec:
+  type: LoadBalancer
+  selector:
+    app: bridge-api
+  ports:
+    - port: 8001
+      targetPort: 8001
+      protocol: TCP
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bridge-api-secrets
+type: Opaque
+data:
+  postgres_db_user: cG9zdGdyZXM=
+  postgres_db_password: c2VjcmV0
+  jwt_symmetric_key: OUkwdERDNVM3ODliQTZzZyZsNWM4OHBAQCFpMThXNXY=
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bridge-api-configmap
+data:
+  database_url: "bridge-postgres:5432"
+  database_name: "bridge"
