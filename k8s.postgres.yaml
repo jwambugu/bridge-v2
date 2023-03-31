@@ -18,11 +18,23 @@ spec:
           image: postgres:15.2-alpine3.17
           env:
             - name: POSTGRES_USER
-              value: postgres
+              valueFrom:
+                secretKeyRef:
+                  key: postgres-user
+                  name: postgres-secret
+
             - name: POSTGRES_PASSWORD
-              value: secret
+              valueFrom:
+                secretKeyRef:
+                  key: postgres-password
+                  name: postgres-secret
+
             - name: POSTGRES_DB
-              value: bridge
+              valueFrom:
+                configMapKeyRef:
+                  key: database_name
+                  name: bridge-api-configmap
+
             - name: POD_IP
               valueFrom:
                 fieldRef:
