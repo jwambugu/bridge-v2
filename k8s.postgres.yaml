@@ -1,17 +1,97 @@
-apiVersion: apps/v1
-kind: Deployment
+#apiVersion: apps/v1
+#kind: Deployment
+#metadata:
+#  name: bridge-postgres
+#spec:
+#  replicas: 1
+#  selector:
+#    matchLabels:
+#      app: bridge-postgres
+#  template:
+#    metadata:
+#      labels:
+#        app: bridge-postgres
+#    spec:
+#      containers:
+#        - name: bridge-postgres
+#          imagePullPolicy: IfNotPresent
+#          image: postgres:15.2-alpine3.17
+#          env:
+#            - name: POSTGRES_USER
+#              valueFrom:
+#                secretKeyRef:
+#                  key: postgres-user
+#                  name: postgres-secret
+#
+#            - name: POSTGRES_PASSWORD
+#              valueFrom:
+#                secretKeyRef:
+#                  key: postgres-password
+#                  name: postgres-secret
+#
+#            - name: POSTGRES_DB
+#              valueFrom:
+#                configMapKeyRef:
+#                  key: database_name
+#                  name: bridge-api-configmap
+#
+#            - name: POD_IP
+#              valueFrom:
+#                fieldRef:
+#                  fieldPath: status.podIP
+#                  apiVersion: v1
+#          resources:
+#            limits:
+#              memory: "2Gi"
+#              cpu: "1000m"
+#          ports:
+#            - containerPort: 5432
+
+---
+apiVersion: v1
+kind: Service
 metadata:
   name: bridge-postgres
 spec:
-  replicas: 1
+  selector:
+    app: bridge-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: bridge-postgres
+spec:
   selector:
     matchLabels:
       app: bridge-postgres
+  serviceName: bridge-postgres
+  replicas: 1
   template:
     metadata:
       labels:
         app: bridge-postgres
+
     spec:
+      initContainers:
+        - name: bridge-postgres-init
+          imagePullPolicy: IfNotPresent
+          image: postgres:15.2-alpine3.17
+          command:
+            - bash
+            - "-c"
+            - |
+              set -ex
+              [[ `hostname` =~ -([0-9]+)$ ]] || exit 1
+              ordinal=${BASH_REMATCH[1]}
+              if [[ $ordinal -eq 0 ]]; then
+                printf "I am the primary"
+              else
+                printf "I am a read-only replica"
+              fi
       containers:
         - name: bridge-postgres
           imagePullPolicy: IfNotPresent
@@ -40,22 +120,37 @@ spec:
                 fieldRef:
                   fieldPath: status.podIP
                   apiVersion: v1
-          resources:
-            limits:
-              memory: "2Gi"
-              cpu: "1000m"
           ports:
-            - containerPort: 5432
+            - name: bridge-postgres
+              containerPort: 5432
+          livenessProbe:
+            exec:
+              command:
+                - "sh"
+                - "-c"
+                - "pg_isready --host $POD_IP"
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+                - "sh"
+                - "-c"
+                - "pg_isready --host $POD_IP"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 1
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: bridge-postgres-data
+  volumeClaimTemplates:
+    - metadata:
+        name: bridge-postgres-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
 
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: bridge-postgres
-spec:
-  selector:
-    app: bridge-postgres
-  ports:
-    - port: 5432
-      targetPort: 5432
-      protocol: TCP
