@@ -43,6 +43,12 @@ Update the config as per your credentials.
    cp internal/config/.example.env internal/config/.test.env 
 ```
 
+Run the migrations
+
+```bash
+   make build-goose && sh scripts/goose.sh up
+```
+
 Start the two webservers
 - gRPC server
 - grpc gateway server
@@ -53,7 +59,7 @@ Start the two webservers
 
 ## Running Tests
 
-> ⚠️ Requires postgres  and updated config - see above.
+> ⚠️ Requires postgres and updated config - see above.
 
 To run tests, run the following command:
 
