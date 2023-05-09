@@ -8,7 +8,10 @@ const (
 	AppName Key = "APP_NAME"
 	AppURL  Key = "APP_URL"
 
-	DbURL Key = "DB_URL"
+	DbName     Key = "DB_NAME"
+	DbUser     Key = "DB_USER"
+	DbPassword Key = "DB_PASSWORD"
+	DbHost     Key = "DB_HOST"
 
 	GrpcGWPort Key = "GRPC_GW_PORT"
 	GrpcPort   Key = "GRPC_PORT"
