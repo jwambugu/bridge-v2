@@ -36,7 +36,6 @@ func main() {
 
 	rs := repository.NewStore()
 	rs.UserRepo = repository.NewUserRepo(dbConn, repoLogger)
-	rs.CategoryRepo = repository.NewCategoryRepo(dbConn, repoLogger)
 
 	var (
 		ctx        = context.Background()

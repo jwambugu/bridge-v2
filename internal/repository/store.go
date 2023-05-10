@@ -1,8 +1,7 @@
 package repository
 
 type Store struct {
-	UserRepo     User
-	CategoryRepo Category
+	UserRepo User
 }
 
 type scanner interface {
