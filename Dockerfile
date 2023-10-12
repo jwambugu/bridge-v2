@@ -12,15 +12,12 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 COPY . .
 
+RUN go build \
+    -tags netgo\
+    -o server cmd/api/*
+
 RUN apk add make
 RUN make build-goose
-
-RUN apk --no-cache add gcc g++ git
-
-RUN go build \
-     -ldflags="-linkmode external -extldflags -static"\
-     -tags netgo\
-    -o server cmd/api/*
 
 FROM alpine:latest
 
