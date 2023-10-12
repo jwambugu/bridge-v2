@@ -81,10 +81,10 @@ func (ap *authProcessor) Authenticate() AuthenticatorFunc {
 		claims, err := ap.jwtManager.Verify(splits[1])
 		if err != nil {
 			l.Error().Err(err).Msg("failed to verify token")
-			switch err {
-			case ErrInvalidToken:
+			switch {
+			case errors.Is(err, ErrInvalidToken):
 				return nil, rpc_error.ErrInvalidToken
-			case ErrExpiredToken:
+			case errors.Is(err, ErrExpiredToken):
 				return nil, rpc_error.ErrExpiredToken
 			default:
 				return nil, rpc_error.ErrServerError
