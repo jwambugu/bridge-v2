@@ -1,15 +1,28 @@
 # [WIP] - Bridge
 
-API gateway for making bulk payments and bulk notification built using go and gRPC. This implementation uses
+A simple backend service built using go and gRPC. This implementation uses
 the [Hexagonal architecture](https://en.wikipedia.org/wiki/Hexagonal_architecture_(software)) which allows the business
 logic to not rely on the data sources which can be easily swapped on demand.
 
 The projects also uses [gRPC gateway](https://github.com/grpc-ecosystem/grpc-gateway) to proxy gRPC to JSON following
 the gRPC HTTP spec.
 
+The service can:
+
+- Login an existing user.
+- Register a new user
+- Get auth user details.
+- Update auth user details.
+
 ### Endpoints
 
 > TODO: Add gRPC and grpc-gateway endpoints
+
+### Roadmap
+
+- [] Store credentials on vault
+- [] Add observability using OpenTelemetry
+- [] Add a worker to run background tasks
 
 ## Running on Docker [Requires docker]
 
@@ -50,6 +63,7 @@ Run the migrations
 ```
 
 Start the two webservers
+
 - gRPC server
 - grpc gateway server
 
@@ -66,17 +80,3 @@ To run tests, run the following command:
 ```bash
   make test
 ```
-
-## Dependencies
-
-The core dependencies used are:
-
-### Tasks
-
-- [] Remove categories - changes project from ecommerce
-- [] Add mpesa integration
-- [] Add contacts management
-- [] Add queue driver - redis/kafka/rabbitmq?
-- [] Add bulk payments
-- [] Add firebase notifications support
-- [] Add bulk SMS support - africa talking/twilio? 
