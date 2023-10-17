@@ -34,16 +34,8 @@ jobs:
         with:
           go-version: 1.19
 
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v1
-        with:
-          repo-token: ${{ secrets.ACTIONS_TOKEN }}
-
       - name: Audit Compilers
         run: make audit
-
-      - name: Generate gRPC code
-        run: make protoc
 
       - name: Build goose migration tool
         run: make build-goose
