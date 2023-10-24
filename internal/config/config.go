@@ -30,6 +30,7 @@ const (
 // Provider provides methods for interacting with the configuration provider
 type Provider interface {
 	Get(ctx context.Context, key string) (string, error)
+	Put(ctx context.Context, key string, value string) error
 }
 
 type Configuration struct {
