@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"log"
 	"os"
 	"path/filepath"
@@ -25,6 +26,23 @@ const (
 	// CiCd is the deployment and testing environment.
 	CiCd Environment = "cicd"
 )
+
+// Provider provides methods for interacting with the configuration provider
+type Provider interface {
+	Get(ctx context.Context, key string) (string, error)
+	Put(ctx context.Context, key string, value string) error
+}
+
+type Configuration struct {
+	provider Provider
+}
+
+// NewConfig initializes new Configuration
+func NewConfig(p Provider) *Configuration {
+	return &Configuration{
+		provider: p,
+	}
+}
 
 var _ = loadConfig()
 
