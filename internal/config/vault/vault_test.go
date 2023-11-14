@@ -2,55 +2,40 @@ package vault_test
 
 import (
 	"bridge/internal/config/vault"
+	"bridge/internal/testutils"
 	"context"
 	"github.com/stretchr/testify/assert"
-	"os"
 	"testing"
 )
 
-func TestProvider_Get(t *testing.T) {
-	t.Skip("Requires dockertest")
+func TestProvider_Get_Put(t *testing.T) {
+	t.Parallel()
 
 	var (
 		asserts = assert.New(t)
 		ctx     = context.Background()
-
-		addr  = os.Getenv("VAULT_ADDR")
-		path  = os.Getenv("VAULT_PATH")
-		token = os.Getenv("VAULT_TOKEN")
 	)
 
-	provider, err := vault.NewProvider(addr, path, token)
-	asserts.NoError(err)
+	vaultClient := testutils.VaultClient(t)
 
-	key, err := provider.Get(ctx, "vault//bridger/database:password")
+	provider, err := vault.NewProvider(vaultClient.Address, vaultClient.Path, vaultClient.Token)
 	asserts.NoError(err)
-	asserts.NotNil(key)
-}
-
-func TestProvider_Put(t *testing.T) {
-	t.Skip("Requires dockertest")
 
 	var (
-		asserts = assert.New(t)
-		ctx     = context.Background()
-
-		addr  = os.Getenv("VAULT_ADDR")
-		path  = os.Getenv("VAULT_PATH")
-		token = os.Getenv("VAULT_TOKEN")
+		wantKey   = "vault//bridger/test:key"
+		wantValue = "test:key"
 	)
 
-	provider, err := vault.NewProvider(addr, path, token)
+	err = provider.Put(ctx, wantKey, wantValue)
 	asserts.NoError(err)
 
-	err = provider.Put(ctx, "vault//bridger/database:host", "localhost:5432")
+	gotValue, err := provider.Get(ctx, wantKey)
 	asserts.NoError(err)
+	asserts.NotNil(gotValue)
+	asserts.Equal(wantValue, gotValue)
 
-	key, err := provider.Get(ctx, "vault//bridger/database:host")
+	gotValue, err = provider.Get(ctx, wantKey)
 	asserts.NoError(err)
-	asserts.NotNil(key)
-
-	key, err = provider.Get(ctx, "vault//bridger/database:host")
-	asserts.NoError(err)
-	asserts.NotNil(key)
+	asserts.NotNil(gotValue)
+	asserts.Equal(wantValue, gotValue)
 }
