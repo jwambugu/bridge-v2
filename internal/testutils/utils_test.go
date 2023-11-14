@@ -6,6 +6,8 @@ import (
 )
 
 func TestVaultClient(t *testing.T) {
+	t.Parallel()
+
 	asserts := assert.New(t)
 
 	cl, cleanup, err := newVaultClient()
@@ -15,4 +17,17 @@ func TestVaultClient(t *testing.T) {
 
 	asserts.NoError(err)
 	asserts.NotNil(cl)
+}
+
+func TestPostgresSrv(t *testing.T) {
+	t.Parallel()
+
+	asserts := assert.New(t)
+
+	_, cleanup, err := postgresSrv()
+	defer func() {
+		asserts.NoError(cleanup())
+	}()
+
+	asserts.NoError(err)
 }

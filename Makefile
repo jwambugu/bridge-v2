@@ -24,7 +24,7 @@ audit:
 
 .PHONY: test
 test:
-	go clean -testcache && go test -cover -race ./...
+	go clean -testcache && go test -cover -race -v ./...
 
 .PHONY: docker-build
 docker-build:

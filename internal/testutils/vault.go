@@ -26,6 +26,10 @@ const (
 func newVaultClient() (*VaultConfig, func() error, error) {
 	pool, err := dockertest.NewPool("")
 	if err != nil {
+		return nil, nil, fmt.Errorf("error constructing pool: %w", err)
+	}
+
+	if err := pool.Client.Ping(); err != nil {
 		return nil, nil, fmt.Errorf("error connecting to docker: %w", err)
 	}
 
@@ -43,13 +47,11 @@ func newVaultClient() (*VaultConfig, func() error, error) {
 		CapAdd:       []string{"IPC_LOCK"},
 	}, func(config *docker.HostConfig) {
 		config.AutoRemove = true
-		config.RestartPolicy = docker.RestartPolicy{
-			Name: "no",
-		}
+		config.RestartPolicy = docker.RestartPolicy{Name: "no"}
 	})
 
 	if err != nil {
-		return nil, nil, fmt.Errorf("error restarting resource: %w", err)
+		return nil, nil, fmt.Errorf("error starting resource: %w", err)
 	}
 
 	_ = resource.Expire(60)
