@@ -39,7 +39,6 @@ func NewPostgresSrv() (*PostgresSrv, func() error, error) {
 	}, func(config *docker.HostConfig) {
 		config.AutoRemove = true
 		config.RestartPolicy = docker.RestartPolicy{Name: "no"}
-		return
 	})
 
 	if err != nil {
