@@ -8,14 +8,18 @@ import (
 	"bridge/internal/repository"
 	"bridge/internal/rpc_error"
 	"bridge/internal/testutils"
+	"bridge/internal/testutils/docker_test"
 	"bridge/internal/utils"
 	"bridge/services/auth"
 	"context"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
+	"log"
+	"os"
 	"testing"
 )
 
@@ -27,11 +31,42 @@ func testAuthClient(t *testing.T, addr string) pb.AuthServiceClient {
 	return pb.NewAuthServiceClient(conn)
 }
 
+var testDB *sqlx.DB
+
+func testMain(m *testing.M) (code int, err error) {
+	pgSrv, cleanup, err := docker_test.NewPostgresSrv()
+	if err != nil {
+		return 0, err
+	}
+
+	defer func() {
+		err = cleanup()
+	}()
+
+	testDB = pgSrv.DB
+	return m.Run(), err
+}
+
+func TestMain(m *testing.M) {
+	code, err := testMain(m)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	os.Exit(code)
+}
+
 func TestServer_Login(t *testing.T) {
 	var (
-		l       = logger.NewTestLogger
 		asserts = assert.New(t)
+		ctx     = context.Background()
 	)
+
+	userRepo, err := repository.NewTestUserRepo(ctx, testDB)
+	asserts.NoError(err)
+
+	rs := repository.NewStore()
+	rs.UserRepo = userRepo
 
 	tests := []struct {
 		name    string
@@ -43,7 +78,10 @@ func TestServer_Login(t *testing.T) {
 			setup: func(t *testing.T) (*pb.User, string) {
 				t.Helper()
 				u := factory.NewUser()
-				repository.NewTestUserRepo(l, u)
+
+				err = userRepo.Create(ctx, u)
+				asserts.NoError(err)
+
 				return u, factory.DefaultPassword
 			},
 		},
@@ -52,7 +90,10 @@ func TestServer_Login(t *testing.T) {
 			setup: func(t *testing.T) (*pb.User, string) {
 				t.Helper()
 				u := factory.NewUser()
-				repository.NewTestUserRepo(l, u)
+
+				err = userRepo.Create(ctx, u)
+				asserts.NoError(err)
+
 				return u, "test_password"
 			},
 			wantErr: rpc_error.ErrUnauthenticated,
@@ -72,7 +113,10 @@ func TestServer_Login(t *testing.T) {
 
 				u := factory.NewUser()
 				u.AccountStatus = pb.User_INACTIVE
-				repository.NewTestUserRepo(l, u)
+
+				err = userRepo.Create(ctx, u)
+				asserts.NoError(err)
+
 				return u, factory.DefaultPassword
 			},
 			wantErr: rpc_error.ErrInactiveAccount,
@@ -84,8 +128,6 @@ func TestServer_Login(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			rs := repository.NewStore()
-			rs.UserRepo = repository.NewTestUserRepo(l)
 			testUser, password := tt.setup(t)
 
 			jwtKey := config.Get[string](config.JWTKey, "")
@@ -93,7 +135,7 @@ func TestServer_Login(t *testing.T) {
 			asserts.NoError(err)
 
 			var (
-				srvAddr    = testutils.TestGRPCSrv(t, jwtManager, l, rs)
+				srvAddr    = testutils.TestGRPCSrv(t, jwtManager, logger.TestLogger, rs)
 				authClient = testAuthClient(t, srvAddr)
 				ctx        = context.Background()
 
@@ -125,9 +167,19 @@ func TestServer_Login(t *testing.T) {
 
 func TestServer_Register(t *testing.T) {
 	var (
-		l       = logger.NewTestLogger
 		asserts = assert.New(t)
+		ctx     = context.Background()
+		jwtKey  = config.Get[string](config.JWTKey, "")
 	)
+
+	jwtManager, err := auth.NewPasetoToken(jwtKey)
+	asserts.NoError(err)
+
+	userRepo, err := repository.NewTestUserRepo(ctx, testDB)
+	asserts.NoError(err)
+
+	rs := repository.NewStore()
+	rs.UserRepo = userRepo
 
 	tests := []struct {
 		name      string
@@ -155,7 +207,8 @@ func TestServer_Register(t *testing.T) {
 					u1 = factory.NewUser()
 				)
 
-				repository.NewTestUserRepo(l, u1)
+				err = userRepo.Create(ctx, u1)
+				asserts.NoError(err)
 
 				return &pb.RegisterRequest{
 					Name:            u.Name,
@@ -175,7 +228,8 @@ func TestServer_Register(t *testing.T) {
 					u1 = factory.NewUser()
 				)
 
-				repository.NewTestUserRepo(l, u1)
+				err = userRepo.Create(ctx, u1)
+				asserts.NoError(err)
 
 				return &pb.RegisterRequest{
 					Name:            u.Name,
@@ -219,15 +273,8 @@ func TestServer_Register(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			rs := repository.NewStore()
-			rs.UserRepo = repository.NewTestUserRepo(l)
-
-			jwtKey := config.Get[string](config.JWTKey, "")
-			jwtManager, err := auth.NewPasetoToken(jwtKey)
-			asserts.NoError(err)
-
 			var (
-				srvAddr    = testutils.TestGRPCSrv(t, jwtManager, l, rs)
+				srvAddr    = testutils.TestGRPCSrv(t, jwtManager, logger.TestLogger, rs)
 				authClient = testAuthClient(t, srvAddr)
 				ctx        = context.Background()
 				req        = tt.createReq()

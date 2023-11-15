@@ -1,4 +1,4 @@
-package testutils
+package docker_test
 
 import (
 	"context"
@@ -23,7 +23,7 @@ const (
 	vaultToken   = "dev-only-token"
 )
 
-func newVaultClient() (*VaultConfig, func() error, error) {
+func NewVaultClient() (*VaultConfig, func() error, error) {
 	pool, err := dockertest.NewPool("")
 	if err != nil {
 		return nil, nil, fmt.Errorf("error constructing pool: %w", err)
@@ -77,6 +77,10 @@ func newVaultClient() (*VaultConfig, func() error, error) {
 		secretPath = "bridger"
 	)
 
+	if err = resource.Expire(60); err != nil {
+		return nil, nil, fmt.Errorf("error setting timer to remove container: %w", err)
+	}
+
 	err = pool.Retry(func() error {
 		_, err := kv.Put(ctx, secretPath, map[string]interface{}{
 			"database:user": "root",
@@ -120,7 +124,7 @@ func newVaultClient() (*VaultConfig, func() error, error) {
 func VaultClient(t testing.TB) *VaultConfig {
 	t.Helper()
 
-	client, cleanup, err := newVaultClient()
+	client, cleanup, err := NewVaultClient()
 	if err != nil {
 		t.Fatalf("%v\n", err)
 	}

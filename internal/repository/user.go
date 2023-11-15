@@ -3,6 +3,7 @@ package repository
 import (
 	"bridge/api/v1/pb"
 	"bridge/internal/db"
+	"bridge/internal/logger"
 	"bridge/internal/models"
 	"bridge/internal/rpc_error"
 	"context"
@@ -11,7 +12,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/rs/zerolog"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"log"
 	"time"
 )
 
@@ -293,24 +293,16 @@ func (r *userRepo) Update(ctx context.Context, user *pb.User) error {
 	return nil
 }
 
-func NewTestUserRepo(l zerolog.Logger, users ...*pb.User) User {
-	conn, err := db.NewConnection()
-	if err != nil {
-		log.Fatalf("user repo test - %v", err)
-	}
-
-	var (
-		ctx = context.Background()
-		r   = NewUserRepo(conn, l)
-	)
+func NewTestUserRepo(ctx context.Context, db *sqlx.DB, users ...*pb.User) (User, error) {
+	repo := NewUserRepo(db, logger.TestLogger)
 
 	for _, user := range users {
-		if err = r.Create(ctx, user); err != nil {
-			log.Fatalf("failed to create user: %v", err)
+		if err := repo.Create(ctx, user); err != nil {
+			return nil, err
 		}
 	}
 
-	return r
+	return repo, nil
 }
 
 func NewUserRepo(db *sqlx.DB, l zerolog.Logger) User {

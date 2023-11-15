@@ -29,7 +29,7 @@ func main() {
 		repoLogger = l.With().Str("category", "repo").Logger()
 	)
 
-	dbConn, err := db.NewConnection()
+	dbConn, err := db.NewConnection(config.GetDBDsn())
 	if err != nil {
 		l.Fatal().Err(err).Msg("db connection failed")
 	}

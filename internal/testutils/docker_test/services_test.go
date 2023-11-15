@@ -1,6 +1,7 @@
-package testutils
+package docker_test_test
 
 import (
+	"bridge/internal/testutils/docker_test"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -10,7 +11,7 @@ func TestVaultClient(t *testing.T) {
 
 	asserts := assert.New(t)
 
-	cl, cleanup, err := newVaultClient()
+	cl, cleanup, err := docker_test.NewVaultClient()
 	defer func() {
 		asserts.NoError(cleanup())
 	}()
@@ -24,10 +25,11 @@ func TestPostgresSrv(t *testing.T) {
 
 	asserts := assert.New(t)
 
-	_, cleanup, err := postgresSrv()
+	pgSrv, cleanup, err := docker_test.NewPostgresSrv()
 	defer func() {
 		asserts.NoError(cleanup())
 	}()
 
 	asserts.NoError(err)
+	asserts.NotEmpty(pgSrv.DSN)
 }

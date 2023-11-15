@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -99,6 +100,18 @@ func GetEnvironment() Environment {
 		return Environment(env)
 	}
 	return Test
+}
+
+func GetDBDsn() string {
+	var (
+		user     = Get[string](DbUser, "")
+		password = Get[string](DbPassword, "")
+		host     = Get[string](DbHost, "")
+		name     = Get[string](DbName, "")
+		url      = Key(fmt.Sprintf(`postgres://%v:%v@%v/%v?sslmode=disable`, user, password, host, name))
+	)
+
+	return string(url)
 }
 
 func loadConfig() error {

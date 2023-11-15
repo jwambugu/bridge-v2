@@ -2,7 +2,7 @@ package vault_test
 
 import (
 	"bridge/internal/config/vault"
-	"bridge/internal/testutils"
+	"bridge/internal/testutils/docker_test"
 	"context"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -16,7 +16,7 @@ func TestProvider_Get_Put(t *testing.T) {
 		ctx     = context.Background()
 	)
 
-	vaultClient := testutils.VaultClient(t)
+	vaultClient := docker_test.VaultClient(t)
 
 	provider, err := vault.NewProvider(vaultClient.Address, vaultClient.Path, vaultClient.Token)
 	asserts.NoError(err)

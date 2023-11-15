@@ -1,19 +1,23 @@
-package testutils
+package docker_test
 
 import (
+	"bridge/internal/db"
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	"github.com/ory/dockertest"
 	"github.com/ory/dockertest/docker"
-	"testing"
+	"github.com/pressly/goose"
+	"path/filepath"
+	"runtime"
 	"time"
 )
 
-type PostgresConfig struct {
+type PostgresSrv struct {
 	DSN string
+	DB  *sqlx.DB
 }
 
-func postgresSrv() (*PostgresConfig, func() error, error) {
+func NewPostgresSrv() (*PostgresSrv, func() error, error) {
 	pool, err := dockertest.NewPool("")
 	if err != nil {
 		return nil, nil, fmt.Errorf("error constructing pool: %w", err)
@@ -35,6 +39,7 @@ func postgresSrv() (*PostgresConfig, func() error, error) {
 	}, func(config *docker.HostConfig) {
 		config.AutoRemove = true
 		config.RestartPolicy = docker.RestartPolicy{Name: "no"}
+		return
 	})
 
 	if err != nil {
@@ -43,48 +48,44 @@ func postgresSrv() (*PostgresConfig, func() error, error) {
 
 	var (
 		hostAndPort = resource.GetHostPort("5432/tcp")
-		databaseUrl = fmt.Sprintf("postgres://postgres:secret@%s/bridge?sslmode=disable", hostAndPort)
+		dsn         = fmt.Sprintf("postgres://postgres:secret@%s/bridge?sslmode=disable", hostAndPort)
+		pgSrv       = &PostgresSrv{DSN: dsn}
 	)
 
+	if err = resource.Expire(60); err != nil {
+		return nil, nil, fmt.Errorf("error setting timer to remove container: %w", err)
+	}
+
 	// exponential backoff-retry, because the application in the container might not be ready to accept connections yet
-	pool.MaxWait = 120 * time.Second
+	pool.MaxWait = 20 * time.Second
+
 	err = pool.Retry(func() error {
-		// TODO: attempt to connect to the DB
-		db, err := sqlx.Connect("postgres", databaseUrl)
+		conn, err := db.NewConnection(pgSrv.DSN)
 		if err != nil {
 			return err
 		}
 
-		return db.Ping()
+		if err := conn.Ping(); err != nil {
+			return err
+		}
+
+		pgSrv.DB = conn
+
+		_, pwd, _, _ := runtime.Caller(0)
+		migrationsDir := filepath.Join(pwd, "../../..")
+		migrationsDir = migrationsDir + "/db/migrations"
+
+		return goose.Run("up", conn.DB, migrationsDir)
 	})
 
 	if err != nil {
 		return nil, nil, fmt.Errorf("error connecting to docker: %w", err)
 	}
 
-	p := &PostgresConfig{
-		DSN: databaseUrl,
-	}
-
-	return p, func() error {
+	return pgSrv, func() error {
 		if err := pool.Purge(resource); err != nil {
 			return fmt.Errorf("error purging container: %w", err)
 		}
 		return nil
 	}, nil
-}
-
-func PostgresSrv(t testing.TB) *PostgresConfig {
-	postgresConfig, cleanup, err := postgresSrv()
-	if err != nil {
-		t.Fatalf("%v\n", err)
-	}
-
-	t.Cleanup(func() {
-		if err = cleanup(); err != nil {
-			t.Fatalf("%v\n", err)
-		}
-	})
-
-	return postgresConfig
 }

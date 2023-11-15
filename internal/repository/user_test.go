@@ -2,36 +2,41 @@ package repository_test
 
 import (
 	"bridge/api/v1/pb"
-	"bridge/internal/db"
 	"bridge/internal/factory"
-	"bridge/internal/logger"
 	"bridge/internal/repository"
 	"bridge/internal/rpc_error"
+	"bridge/internal/testutils/docker_test"
 	"context"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"log"
+	"os"
 	"testing"
 )
 
-func TestUserRepo_Create(t *testing.T) {
-	t.Parallel()
+var testDB *sqlx.DB
 
-	var (
-		l       = logger.NewTestLogger
-		asserts = assert.New(t)
-	)
+func testMain(m *testing.M) (code int, err error) {
+	pgSrv, cleanup, err := docker_test.NewPostgresSrv()
+	if err != nil {
+		return 0, err
+	}
 
-	dbConn, err := db.NewConnection()
-	require.NoError(t, err)
+	defer func() {
+		err = cleanup()
+	}()
 
-	var (
-		repo = repository.NewUserRepo(dbConn, l)
-		u    = factory.NewUser()
-	)
+	testDB = pgSrv.DB
+	return m.Run(), err
+}
 
-	err = repo.Create(context.Background(), u)
-	require.NoError(t, err)
-	asserts.NotEmpty(u.ID)
+func TestMain(m *testing.M) {
+	code, err := testMain(m)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	os.Exit(code)
 }
 
 func TestUserRepo_Authenticate(t *testing.T) {
@@ -40,13 +45,14 @@ func TestUserRepo_Authenticate(t *testing.T) {
 	var (
 		asserts = assert.New(t)
 		ctx     = context.Background()
-		l       = logger.NewTestLogger
 		u       = factory.NewUser()
-		repo    = repository.NewTestUserRepo(l, u)
 	)
 
+	repo, err := repository.NewTestUserRepo(ctx, testDB, u)
+	asserts.NoError(err)
+
 	gotUser, err := repo.Authenticate(ctx, u.Email)
-	require.NoError(t, err)
+	asserts.NoError(err)
 	asserts.NotNil(gotUser)
 	asserts.Equal(u.ID, gotUser.ID)
 }
@@ -57,13 +63,14 @@ func TestUserRepo_FindByID(t *testing.T) {
 	var (
 		asserts = assert.New(t)
 		ctx     = context.Background()
-		l       = logger.NewTestLogger
 		u       = factory.NewUser()
-		repo    = repository.NewTestUserRepo(l, u)
 	)
 
+	repo, err := repository.NewTestUserRepo(ctx, testDB, u)
+	asserts.NoError(err)
+
 	gotUser, err := repo.FindByID(ctx, u.ID)
-	require.NoError(t, err)
+	asserts.NoError(err)
 	asserts.NotNil(gotUser)
 	asserts.Equal(u.ID, gotUser.ID)
 }
@@ -74,13 +81,14 @@ func TestUserRepo_FindByEmail(t *testing.T) {
 	var (
 		asserts = assert.New(t)
 		ctx     = context.Background()
-		l       = logger.NewTestLogger
 		u       = factory.NewUser()
-		repo    = repository.NewTestUserRepo(l, u)
 	)
 
+	repo, err := repository.NewTestUserRepo(ctx, testDB, u)
+	asserts.NoError(err)
+
 	gotUser, err := repo.FindByEmail(ctx, u.Email)
-	require.NoError(t, err)
+	asserts.NoError(err)
 	asserts.NotNil(gotUser)
 	asserts.Equal(u.ID, gotUser.ID)
 }
@@ -91,22 +99,27 @@ func TestUserRepo_FindByPhoneNumber(t *testing.T) {
 	var (
 		asserts = assert.New(t)
 		ctx     = context.Background()
-		l       = logger.NewTestLogger
-		u       = factory.NewUser()
-		repo    = repository.NewTestUserRepo(l, u)
+
+		u = factory.NewUser()
 	)
 
+	repo, err := repository.NewTestUserRepo(ctx, testDB, u)
+	asserts.NoError(err)
+
 	gotUser, err := repo.FindByPhoneNumber(ctx, u.PhoneNumber)
-	require.NoError(t, err)
+	asserts.NoError(err)
 	asserts.NotNil(gotUser)
 	asserts.Equal(u.ID, gotUser.ID)
 }
 
 func TestUserRepo_Exists(t *testing.T) {
 	var (
-		l       = logger.NewTestLogger
 		asserts = assert.New(t)
+		ctx     = context.Background()
 	)
+
+	repo, err := repository.NewTestUserRepo(ctx, testDB)
+	asserts.NoError(err)
 
 	tests := []struct {
 		name    string
@@ -126,7 +139,10 @@ func TestUserRepo_Exists(t *testing.T) {
 					u  = factory.NewUser()
 					u1 = factory.NewUser()
 				)
-				repository.NewTestUserRepo(l, u)
+
+				err := repo.Create(ctx, u)
+				asserts.NoError(err)
+
 				u.PhoneNumber = u1.PhoneNumber
 				return u
 			},
@@ -139,7 +155,10 @@ func TestUserRepo_Exists(t *testing.T) {
 					u  = factory.NewUser()
 					u1 = factory.NewUser()
 				)
-				repository.NewTestUserRepo(l, u)
+
+				err := repo.Create(ctx, u)
+				asserts.NoError(err)
+
 				u.Email = u1.Email
 				return u
 			},
@@ -152,20 +171,16 @@ func TestUserRepo_Exists(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			var (
-				ctx  = context.Background()
-				u    = tt.getUser()
-				repo = repository.NewTestUserRepo(l)
-			)
+			user := tt.getUser()
 
-			err := repo.Exists(ctx, u)
+			err = repo.Exists(ctx, user)
 			if wantErr := tt.wantErr; wantErr != nil {
-				require.Error(t, err)
+				asserts.Error(err)
 				asserts.EqualError(err, wantErr.Error())
 				return
 			}
 
-			require.NoError(t, err)
+			asserts.NoError(err)
 		})
 	}
 }
@@ -176,20 +191,22 @@ func TestUserRepo_Update(t *testing.T) {
 	var (
 		asserts = assert.New(t)
 		ctx     = context.Background()
-		l       = logger.NewTestLogger
-		u       = factory.NewUser()
-		u1      = factory.NewUser()
-		repo    = repository.NewTestUserRepo(l, u)
+
+		u  = factory.NewUser()
+		u1 = factory.NewUser()
 	)
+
+	repo, err := repository.NewTestUserRepo(ctx, testDB, u)
+	asserts.NoError(err)
 
 	u.Email = u1.Email
 	u.AccountStatus = pb.User_INACTIVE
 
-	err := repo.Update(ctx, u)
-	require.NoError(t, err)
+	err = repo.Update(ctx, u)
+	asserts.NoError(err)
 
 	gotUser, err := repo.FindByPhoneNumber(ctx, u.PhoneNumber)
-	require.NoError(t, err)
+	asserts.NoError(err)
 	asserts.NotNil(gotUser)
 	asserts.Equal(u1.Email, gotUser.Email)
 	asserts.Equal(pb.User_INACTIVE, gotUser.AccountStatus)
