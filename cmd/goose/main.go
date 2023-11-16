@@ -32,7 +32,7 @@ func main() {
 		arguments = append(arguments, args[1:]...)
 	}
 
-	dbConn, err := db.NewConnection()
+	dbConn, err := db.NewConnection(config.GetDBDsn())
 	if err != nil {
 		log.Fatalf("db: %v", err)
 	}

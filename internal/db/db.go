@@ -1,7 +1,6 @@
 package db
 
 import (
-	"bridge/internal/config"
 	"errors"
 	"fmt"
 	"github.com/jmoiron/sqlx"
@@ -19,17 +18,8 @@ const (
 	UserPhoneNumber
 )
 
-var (
-	user     = config.Get[string](config.DbUser, "")
-	password = config.Get[string](config.DbPassword, "")
-	host     = config.Get[string](config.DbHost, "")
-	name     = config.Get[string](config.DbName, "")
-
-	url = config.Key(fmt.Sprintf(`postgres://%v:%v@%v/%v?sslmode=disable`, user, password, host, name))
-)
-
-// NewConnection attempt to create a database connection with the provided config.DbURL
-func NewConnection() (*sqlx.DB, error) {
+// NewConnection attempt to create a database connection with the provided url
+func NewConnection(url string) (*sqlx.DB, error) {
 	if url == "" {
 		return nil, ErrInvalidDSN
 	}

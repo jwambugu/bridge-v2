@@ -52,4 +52,4 @@ func NewLogger() zerolog.Logger {
 	return log
 }
 
-var NewTestLogger = zerolog.Logger{}
+var TestLogger = zerolog.Nop()

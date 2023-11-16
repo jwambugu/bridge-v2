@@ -8,20 +8,56 @@ import (
 	"bridge/internal/repository"
 	"bridge/internal/rpc_error"
 	"bridge/internal/testutils"
+	"bridge/internal/testutils/docker_test"
 	"bridge/services/auth"
 	"context"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"log"
+	"os"
 	"testing"
 	"time"
 )
 
+var testDB *sqlx.DB
+
+func testMain(m *testing.M) (code int, err error) {
+	pgSrv, cleanup, err := docker_test.NewPostgresSrv()
+	if err != nil {
+		return 0, err
+	}
+
+	defer func() {
+		err = cleanup()
+	}()
+
+	testDB = pgSrv.DB
+	return m.Run(), err
+}
+
+func TestMain(m *testing.M) {
+	code, err := testMain(m)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	os.Exit(code)
+}
+
 func TestServer_Create(t *testing.T) {
 	var (
-		l       = logger.NewTestLogger
 		asserts = assert.New(t)
+		ctx     = context.Background()
+		l       = logger.TestLogger
 	)
+
+	userRepo, err := repository.NewTestUserRepo(ctx, testDB)
+	asserts.NoError(err)
+
+	rs := repository.NewStore()
+	rs.UserRepo = userRepo
 
 	tests := []struct {
 		name    string
@@ -42,7 +78,9 @@ func TestServer_Create(t *testing.T) {
 					u1 = factory.NewUser()
 				)
 
-				repository.NewTestUserRepo(l, u1)
+				err := userRepo.Create(ctx, u1)
+				asserts.NoError(err)
+
 				u.Email = u1.Email
 				return u
 			},
@@ -57,8 +95,8 @@ func TestServer_Create(t *testing.T) {
 
 			admin := factory.NewUser()
 
-			rs := repository.NewStore()
-			rs.UserRepo = repository.NewTestUserRepo(l, admin)
+			err = userRepo.Create(ctx, admin)
+			asserts.NoError(err)
 
 			jwtKey := config.Get[string](config.JWTKey, "")
 			jwtManager, err := auth.NewPasetoToken(jwtKey)
@@ -68,9 +106,9 @@ func TestServer_Create(t *testing.T) {
 				srvAddr    = testutils.TestGRPCSrv(t, jwtManager, l, rs)
 				cc         = testutils.TestClientConnWithToken(t, srvAddr, admin.Email, factory.DefaultPassword)
 				userClient = pb.NewUserServiceClient(cc)
-				ctx        = context.Background()
-				u          = tt.getUser()
-				req        = &pb.CreateUserRequest{
+
+				u   = tt.getUser()
+				req = &pb.CreateUserRequest{
 					Name:        u.Name,
 					Email:       u.Email,
 					PhoneNumber: u.PhoneNumber,
@@ -107,20 +145,26 @@ func TestServer_Create(t *testing.T) {
 }
 
 func TestServer_Update(t *testing.T) {
-	l := logger.NewTestLogger
-	u := factory.NewUser()
+	var (
+		asserts = assert.New(t)
+		ctx     = context.Background()
+		u       = factory.NewUser()
+	)
+
+	userRepo, err := repository.NewTestUserRepo(ctx, testDB, u)
+	asserts.NoError(err)
+
 	rs := repository.NewStore()
-	rs.UserRepo = repository.NewTestUserRepo(l, u)
+	rs.UserRepo = userRepo
 
 	jwtKey := config.Get[string](config.JWTKey, "")
 	jwtManager, err := auth.NewPasetoToken(jwtKey)
-	assert.NoError(t, err)
+	asserts.NoError(err)
 
 	var (
-		srvAddr    = testutils.TestGRPCSrv(t, jwtManager, logger.NewTestLogger, rs)
+		srvAddr    = testutils.TestGRPCSrv(t, jwtManager, logger.TestLogger, rs)
 		cc         = testutils.TestClientConnWithToken(t, srvAddr, u.Email, factory.DefaultPassword)
 		userClient = pb.NewUserServiceClient(cc)
-		ctx        = context.Background()
 
 		req = &pb.UpdateRequest{
 			User: &pb.User{
@@ -141,9 +185,9 @@ func TestServer_Update(t *testing.T) {
 	)
 
 	res, err := userClient.Update(ctx, req)
-	assert.NoError(t, err)
-	assert.NotNil(t, res)
-	assert.Equal(t, req.User.Name, res.User.GetName())
-	assert.Equal(t, pb.User_ACTIVE, res.User.GetAccountStatus())
-	assert.Equal(t, req.User.Meta.KycData.IdNumber, res.User.Meta.KycData.IdNumber)
+	asserts.NoError(err)
+	asserts.NotNil(res)
+	asserts.Equal(req.User.Name, res.User.GetName())
+	asserts.Equal(pb.User_ACTIVE, res.User.GetAccountStatus())
+	asserts.Equal(req.User.Meta.KycData.IdNumber, res.User.Meta.KycData.IdNumber)
 }
