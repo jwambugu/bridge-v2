@@ -3,6 +3,7 @@ package user_test
 import (
 	"bridge/api/v1/pb"
 	"bridge/internal/config"
+	"bridge/internal/config/vault"
 	"bridge/internal/factory"
 	"bridge/internal/logger"
 	"bridge/internal/repository"
@@ -21,29 +22,43 @@ import (
 	"time"
 )
 
-var testDB *sqlx.DB
-
-func testMain(m *testing.M) (code int, err error) {
-	pgSrv, cleanup, err := docker_test.NewPostgresSrv()
-	if err != nil {
-		return 0, err
-	}
-
-	defer func() {
-		err = cleanup()
-	}()
-
-	testDB = pgSrv.DB
-	return m.Run(), err
+type testService struct {
+	db    *sqlx.DB
+	vault *docker_test.VaultClient
 }
 
-func TestMain(m *testing.M) {
-	code, err := testMain(m)
+var testSvc = &testService{}
+
+func testMain(m *testing.M) int {
+	pgSrv, postgresCleanup, err := docker_test.NewPostgresSrv()
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	os.Exit(code)
+	defer func() {
+		if err = postgresCleanup(); err != nil {
+			log.Fatalln(err)
+		}
+	}()
+
+	vaultClient, vaultCleanup, err := docker_test.NewVaultClient()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	defer func() {
+		if err = vaultCleanup(); err != nil {
+			log.Fatalln(err)
+		}
+	}()
+
+	testSvc.db = pgSrv.DB
+	testSvc.vault = vaultClient
+	return m.Run()
+}
+
+func TestMain(m *testing.M) {
+	os.Exit(testMain(m))
 }
 
 func TestServer_Create(t *testing.T) {
@@ -53,7 +68,18 @@ func TestServer_Create(t *testing.T) {
 		l       = logger.TestLogger
 	)
 
-	userRepo, err := repository.NewTestUserRepo(ctx, testDB)
+	userRepo, err := repository.NewTestUserRepo(ctx, testSvc.db)
+	asserts.NoError(err)
+
+	vaultClient, err := vault.NewProvider(testSvc.vault.Address, testSvc.vault.Path, testSvc.vault.Token)
+	asserts.NoError(err)
+
+	configProvider := config.NewConfig(vaultClient)
+
+	jwtKey, err := configProvider.Get(ctx, "JWT_SYMMETRIC_KEY")
+	asserts.NoError(err)
+
+	jwtManager, err := auth.NewPasetoToken(jwtKey)
 	asserts.NoError(err)
 
 	rs := repository.NewStore()
@@ -96,10 +122,6 @@ func TestServer_Create(t *testing.T) {
 			admin := factory.NewUser()
 
 			err = userRepo.Create(ctx, admin)
-			asserts.NoError(err)
-
-			jwtKey := config.Get[string](config.JWTKey, "")
-			jwtManager, err := auth.NewPasetoToken(jwtKey)
 			asserts.NoError(err)
 
 			var (
@@ -151,13 +173,20 @@ func TestServer_Update(t *testing.T) {
 		u       = factory.NewUser()
 	)
 
-	userRepo, err := repository.NewTestUserRepo(ctx, testDB, u)
+	userRepo, err := repository.NewTestUserRepo(ctx, testSvc.db, u)
 	asserts.NoError(err)
 
 	rs := repository.NewStore()
 	rs.UserRepo = userRepo
 
-	jwtKey := config.Get[string](config.JWTKey, "")
+	vaultClient, err := vault.NewProvider(testSvc.vault.Address, testSvc.vault.Path, testSvc.vault.Token)
+	asserts.NoError(err)
+
+	configProvider := config.NewConfig(vaultClient)
+
+	jwtKey, err := configProvider.Get(ctx, "JWT_SYMMETRIC_KEY")
+	asserts.NoError(err)
+
 	jwtManager, err := auth.NewPasetoToken(jwtKey)
 	asserts.NoError(err)
 

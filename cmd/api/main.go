@@ -3,6 +3,7 @@ package main
 import (
 	"bridge/api/v1/pb"
 	"bridge/internal/config"
+	"bridge/internal/config/vault"
 	"bridge/internal/db"
 	"bridge/internal/interceptors"
 	"bridge/internal/logger"
@@ -23,13 +24,35 @@ import (
 func main() {
 	var (
 		appName = config.Get(config.AppName, "bridge")
+		ctx     = context.Background()
 
 		l          = logger.NewLogger().With().Str("app_name", appName).Interface("env", config.GetEnvironment()).Logger()
 		svcLogger  = l.With().Str("category", "svc").Logger()
 		repoLogger = l.With().Str("category", "repo").Logger()
+
+		vaultAddr  = os.Getenv("VAULT_ADDR")
+		vaultPath  = os.Getenv("VAULT_PATH")
+		vaultToken = os.Getenv("VAULT_TOKEN")
 	)
 
-	dbConn, err := db.NewConnection(config.GetDBDsn())
+	vaultClient, err := vault.NewProvider(vaultAddr, vaultPath, vaultToken)
+	if err != nil {
+		l.Fatal().Err(err).Msg("error connecting to vault")
+	}
+
+	configProvider := config.NewConfig(vaultClient)
+
+	// getConfig fetches the provided key, if an error occurs, it fails and exits
+	getConfig := func(key string) string {
+		val, err := configProvider.Get(ctx, key)
+		if err != nil {
+			l.Fatal().Err(err).Msgf("error fetching key: %s", key)
+		}
+
+		return val
+	}
+
+	dbConn, err := db.NewConnection(getConfig("DB_DSN"))
 	if err != nil {
 		l.Fatal().Err(err).Msg("db connection failed")
 	}
@@ -38,10 +61,9 @@ func main() {
 	rs.UserRepo = repository.NewUserRepo(dbConn, repoLogger)
 
 	var (
-		ctx        = context.Background()
 		grpcGWPort = config.Get(config.GrpcGWPort, "0.0.0.0:8001")
 		grpcPort   = config.Get(config.GrpcPort, ":8000")
-		jwtKey     = config.Get[string](config.JWTKey, "")
+		jwtKey     = getConfig("JWT_SYMMETRIC_KEY")
 	)
 
 	jwtManager, err := auth.NewPasetoToken(jwtKey)

@@ -80,3 +80,5 @@ To run tests, run the following command:
 ```bash
   make test
 ```
+
+[//]: # (https://stackoverflow.com/questions/129693/is-duplicated-code-more-tolerable-in-unit-tests)

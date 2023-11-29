@@ -15,6 +15,8 @@ import (
 // Environment is the current running environment.
 type Environment string
 
+const ProviderKeySeparator = "secret://"
+
 const (
 	// Local is the environment used to run the application on the local machine.
 	Local Environment = "local"
@@ -36,6 +38,22 @@ type Provider interface {
 
 type Configuration struct {
 	provider Provider
+}
+
+func (c *Configuration) Get(ctx context.Context, key string) (string, error) {
+	envKey := os.Getenv(key)
+	securedEnvKey := os.Getenv(key + "_SECURE")
+
+	if securedEnvKey != "" {
+		securedKey, err := c.provider.Get(ctx, securedEnvKey)
+		if err != nil {
+			return "", fmt.Errorf("provider get: %w", err)
+		}
+
+		envKey = securedKey
+	}
+
+	return envKey, nil
 }
 
 // NewConfig initializes new Configuration
