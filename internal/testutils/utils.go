@@ -16,8 +16,6 @@ import (
 	"testing"
 )
 
-var lis net.Listener
-
 // TestGRPCSrv creates and runs a grpc.Server. Returns the address of the server.
 func TestGRPCSrv(
 	t *testing.T,
@@ -38,11 +36,8 @@ func TestGRPCSrv(
 	pb.RegisterAuthServiceServer(srv, authSvc)
 	pb.RegisterUserServiceServer(srv, userSvc)
 
-	var err error
-	if lis == nil {
-		lis, err = net.Listen("tcp", ":0")
-		asserts.NoError(err)
-	}
+	lis, err := net.Listen("tcp", ":0")
+	asserts.NoError(err)
 
 	go func() {
 		asserts.NoError(srv.Serve(lis))
