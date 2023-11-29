@@ -1,6 +1,7 @@
 package vault
 
 import (
+	"bridge/internal/config"
 	"context"
 	"errors"
 	"fmt"
@@ -8,9 +9,7 @@ import (
 	"strings"
 )
 
-const providerName = `vault`
-
-var ErrInvalidProvider = errors.New("invalid provider given")
+// ErrInvalidKey is used when we receive an incompatible key
 var ErrInvalidKey = errors.New("invalid key provided")
 
 type Provider struct {
@@ -19,16 +18,12 @@ type Provider struct {
 }
 
 // Get retrieves a value from vault using the KV engine. The actual key selected is determined by the value
-// separated by the forward slash. For example "vault//secret-path/database:user" will retrieve the key "database:user"
-// from the path "secret-path" using the engine "vault".
+// separated by the forward slash. For example "secret://secret-path/database:user" will retrieve the key "database:user"
+// from the path "secret-path".
 func (p *Provider) Get(ctx context.Context, key string) (string, error) {
-	providerWithKeys := strings.Split(key, "//")
+	providerWithKeys := strings.Split(key, config.ProviderKeySeparator)
 	if len(providerWithKeys) != 2 {
 		return "", ErrInvalidKey
-	}
-
-	if providerWithKeys[0] != providerName {
-		return "", ErrInvalidProvider
 	}
 
 	var (
@@ -71,14 +66,13 @@ func (p *Provider) Get(ctx context.Context, key string) (string, error) {
 	return val, nil
 }
 
+// Put adds a value to the vault using the KV engine. The actual key selected is determined by the value
+// separated by the forward slash. For example "secret://secret-path/database:user" will add the key "database:user"
+// on the path "secret-path".
 func (p *Provider) Put(ctx context.Context, key string, value string) error {
 	providerWithKeys := strings.Split(key, "//")
 	if len(providerWithKeys) != 2 {
 		return ErrInvalidKey
-	}
-
-	if providerWithKeys[0] != providerName {
-		return ErrInvalidProvider
 	}
 
 	var (
@@ -108,10 +102,10 @@ func (p *Provider) Put(ctx context.Context, key string, value string) error {
 
 // NewProvider creates a new vault provider
 func NewProvider(addr, mountPath, token string) (*Provider, error) {
-	config := vault.DefaultConfig()
-	config.Address = addr
+	vaultConfig := vault.DefaultConfig()
+	vaultConfig.Address = addr
 
-	client, err := vault.NewClient(config)
+	client, err := vault.NewClient(vaultConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error creating vault client - %w", err)
 	}

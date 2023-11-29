@@ -12,6 +12,7 @@ import (
 	"time"
 )
 
+// PostgresSrv is a testing postgres instance
 type PostgresSrv struct {
 	DSN string
 	DB  *sqlx.DB

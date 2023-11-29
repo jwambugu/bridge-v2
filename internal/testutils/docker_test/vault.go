@@ -6,12 +6,12 @@ import (
 	vault "github.com/hashicorp/vault/api"
 	"github.com/ory/dockertest"
 	"github.com/ory/dockertest/docker"
-	"testing"
 	"time"
 )
 
-// VaultConfig is a testing vault instance
-type VaultConfig struct {
+// VaultClient is a testing vault instance
+type VaultClient struct {
+	Client  *vault.Client
 	Address string
 	Path    string
 	Token   string
@@ -23,7 +23,7 @@ const (
 	vaultToken   = "dev-only-token"
 )
 
-func NewVaultClient() (*VaultConfig, func() error, error) {
+func NewVaultClient() (*VaultClient, func() error, error) {
 	pool, err := dockertest.NewPool("")
 	if err != nil {
 		return nil, nil, fmt.Errorf("error constructing pool: %w", err)
@@ -83,7 +83,8 @@ func NewVaultClient() (*VaultConfig, func() error, error) {
 
 	err = pool.Retry(func() error {
 		_, err := kv.Put(ctx, secretPath, map[string]interface{}{
-			"database:user": "root",
+			"database:user":     "root",
+			"JWT_SYMMETRIC_KEY": "86f5778df1b11e35caf8bc793391bfd1",
 		})
 
 		if err != nil {
@@ -106,8 +107,9 @@ func NewVaultClient() (*VaultConfig, func() error, error) {
 		return nil, nil, err
 	}
 
-	v := &VaultConfig{
+	v := &VaultClient{
 		Address: address,
+		Client:  client,
 		Path:    vaultPath,
 		Token:   vaultToken,
 	}
@@ -118,22 +120,4 @@ func NewVaultClient() (*VaultConfig, func() error, error) {
 		}
 		return nil
 	}, nil
-}
-
-// VaultClient creates a new vault instance using dockertest
-func VaultClient(t testing.TB) *VaultConfig {
-	t.Helper()
-
-	client, cleanup, err := NewVaultClient()
-	if err != nil {
-		t.Fatalf("%v\n", err)
-	}
-
-	t.Cleanup(func() {
-		if err = cleanup(); err != nil {
-			t.Fatalf("%v\n", err)
-		}
-	})
-
-	return client
 }
