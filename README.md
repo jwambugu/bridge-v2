@@ -14,13 +14,16 @@ The service can:
 - Get auth user details.
 - Update auth user details.
 
+For unit tests, we use [dockertest](https://github.com/ory/dockertest) to boot up containers used to make
+integration tests easier.
+
 ### Endpoints
 
 > TODO: Add gRPC and grpc-gateway endpoints
 
 ### Roadmap
 
-- [] Store credentials on vault
+- [x] Store credentials on vault
 - [] Add observability using OpenTelemetry
 - [] Add a worker to run background tasks
 
