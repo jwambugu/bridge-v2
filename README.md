@@ -15,7 +15,7 @@ The service can:
 - Update auth user details.
 
 For unit tests, we use [dockertest](https://github.com/ory/dockertest) to boot up containers used to make
-integration tests easier.
+integration tests easier and also [vault](https://www.vaultproject.io/) for managing secrets.
 
 ### Endpoints
 
