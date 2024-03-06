@@ -3,11 +3,12 @@ package main
 import (
 	"bridge/internal/config"
 	"bridge/internal/db"
+	"bridge/internal/logger"
+	"context"
 	"flag"
-	"log"
-	"os"
-
 	"github.com/pressly/goose"
+	"os"
+	"time"
 )
 
 var (
@@ -17,8 +18,10 @@ var (
 const _migrateDown = "down"
 
 func main() {
+	appLogger := logger.NewLogger()
+
 	if err := flags.Parse(os.Args[1:]); err != nil {
-		log.Fatalf("parse flags: %v", err)
+		appLogger.Fatal().Err(err).Msg("parse flags")
 	}
 
 	args := flags.Args()
@@ -32,21 +35,31 @@ func main() {
 		arguments = append(arguments, args[1:]...)
 	}
 
-	dbConn, err := db.NewConnection(config.GetDBDsn())
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, err := config.NewDefaultConfig(ctx)
 	if err != nil {
-		log.Fatalf("db: %v", err)
+		appLogger.Fatal().Err(err).Msg("get default config")
+	}
+
+	dbConn, err := db.NewConnection(config.EnvKey.DbDsn)
+	if err != nil {
+		appLogger.Fatal().Err(err).Msg("create db connection")
 	}
 
 	var (
 		command = args[0]
-		env     = config.GetEnvironment()
+		env     = config.EnvKey.Env
 	)
 
-	if command == _migrateDown && env == config.Production {
-		log.Fatalf("Command %q cannot be applied on environment %q", command, env)
+	if command == _migrateDown && env == config.ProductionEnvironment {
+		appLogger.Fatal().Err(err).Msgf("Command %q cannot be applied on environment %q", command, env)
 	}
 
+	appLogger.Info().Str("command", command).Msg("running command")
+
 	if err = goose.Run(command, dbConn.DB, "./internal/db/migrations", arguments...); err != nil {
-		log.Fatalf("goose run %v: %v", command, err)
+		appLogger.Fatal().Err(err).Msgf("goose run %v: %v", command, err)
 	}
 }

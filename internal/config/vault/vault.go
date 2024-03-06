@@ -1,7 +1,6 @@
 package vault
 
 import (
-	"bridge/internal/config"
 	"context"
 	"errors"
 	"fmt"
@@ -12,6 +11,9 @@ import (
 // ErrInvalidKey is used when we receive an incompatible key
 var ErrInvalidKey = errors.New("invalid key provided")
 
+// KeyPrefix defines string used as a prefix for secret keys.
+const KeyPrefix = "secret://"
+
 type Provider struct {
 	kv      *vault.KVv2
 	secrets map[string]map[string]string
@@ -21,7 +23,7 @@ type Provider struct {
 // separated by the forward slash. For example "secret://secret-path/database:user" will retrieve the key "database:user"
 // from the path "secret-path".
 func (p *Provider) Get(ctx context.Context, key string) (string, error) {
-	providerWithKeys := strings.Split(key, config.ProviderKeySeparator)
+	providerWithKeys := strings.Split(key, KeyPrefix)
 	if len(providerWithKeys) != 2 {
 		return "", ErrInvalidKey
 	}
@@ -35,7 +37,7 @@ func (p *Provider) Get(ctx context.Context, key string) (string, error) {
 	if v, ok := p.secrets[secretPath]; ok {
 		secretValue, ok := v[keyName]
 		if !ok {
-			return "", fmt.Errorf("key not found on cached data")
+			return "", fmt.Errorf("key %q not found on cached data", keyName)
 		}
 
 		return secretValue, nil

@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     hostname: postgres
     ports:
-      - "5433:5432"
+      - "5432:5432"
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=secret
@@ -21,28 +21,59 @@ services:
       - ./storage/postgres:/var/lib/postgresql/data
     networks:
       - bridge_network
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
+
+  vault:
+    image: hashicorp/vault:1.15
+    container_name: vault
+    restart: on-failure
     ports:
-      - "8000:8000"
-      - "8001:8001"
+      - "8200:8200"
     environment:
-      - DB_HOST=postgres:5432
-      - DB_USER=postgres
-      - DB_PASSWORD=secret
-      - DB_NAME=bridge
-      - JWT_SYMMETRIC_KEY=9I0tDC5S789bA6sg&l5c88p@@!i18W5v
-      - GRPC_PORT=:8000
-      - GRPC_GW_ADDR=0.0.0.0:8001
-    depends_on:
-      postgres:
-        condition: service_healthy
+      VAULT_ADDR: "https://0.0.0.0:8200"
+      VAULT_DEV_ROOT_TOKEN_ID: "secret"
+      VAULT_TOKEN: "secret"
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - ./storage/vault:/data
+    healthcheck:
+      retries: 5
+      test: ["CMD", "curl", "-f", "https://0.0.0.0:8200"]
+    command: server -dev -dev-root-token-id="secret"
     networks:
       - bridge_network
-    entrypoint: [ "/app/start.sh" ]
-    command: [ "/app/server" ]
+
+  vault-populate:
+    image: alpine/curl
+    depends_on:
+      - vault
+    volumes:
+      - ./scripts/populate_vault.sh:/usr/local/bin/populate_vault.sh
+    command: ["sh", "-c", "/usr/local/bin/populate_vault.sh"]
+    networks:
+      - bridge_network
+#  api:
+#    build:
+#      context: .
+#      dockerfile: Dockerfile
+#    ports:
+#      - "8000:8000"
+#      - "8001:8001"
+#    environment:
+#      - DB_HOST=postgres:5432
+#      - DB_USER=postgres
+#      - DB_PASSWORD=secret
+#      - DB_NAME=bridge
+#      - JWT_SYMMETRIC_KEY=9I0tDC5S789bA6sg&l5c88p@@!i18W5v
+#      - GRPC_PORT=:8000
+#      - GRPC_GW_ADDR=0.0.0.0:8001
+#    depends_on:
+#      postgres:
+#        condition: service_healthy
+#    networks:
+#      - bridge_network
+#    entrypoint: [ "/app/start.sh" ]
+#    command: [ "/app/server" ]
 
 networks:
   bridge_network:

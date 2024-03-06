@@ -74,7 +74,7 @@ func NewVaultClient() (*VaultClient, func() error, error) {
 	var (
 		kv         = client.KVv2(vaultPath)
 		ctx        = context.Background()
-		secretPath = "bridger"
+		secretPath = "bridge"
 	)
 
 	if err = resource.Expire(60); err != nil {
@@ -83,8 +83,9 @@ func NewVaultClient() (*VaultClient, func() error, error) {
 
 	err = pool.Retry(func() error {
 		_, err := kv.Put(ctx, secretPath, map[string]interface{}{
-			"database:user":     "root",
-			"JWT_SYMMETRIC_KEY": "86f5778df1b11e35caf8bc793391bfd1",
+			"database:dsn":  "postgres://postgres:secret@localhost:5432/bridge?sslmode=disable",
+			"database:user": "root",
+			"jwt_key":       "86f5778df1b11e35caf8bc793391bfd1",
 		})
 
 		if err != nil {

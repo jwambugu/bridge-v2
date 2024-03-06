@@ -3,7 +3,6 @@ package main
 import (
 	"bridge/api/v1/pb"
 	"bridge/internal/config"
-	"bridge/internal/config/vault"
 	"bridge/internal/db"
 	"bridge/internal/interceptors"
 	"bridge/internal/logger"
@@ -18,57 +17,49 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
+	"time"
 )
 
 func main() {
+	appLogger := logger.NewLogger()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, err := config.NewDefaultConfig(ctx)
+	if err != nil {
+		appLogger.Fatal().Err(err).Msg("get default config")
+	}
+
+	appLogger = appLogger.With().
+		Str("app_name", config.EnvKey.Name).
+		Str("env", config.EnvKey.Env).
+		Logger()
+
 	var (
-		appName = config.Get(config.AppName, "bridge")
-		ctx     = context.Background()
-
-		l          = logger.NewLogger().With().Str("app_name", appName).Interface("env", config.GetEnvironment()).Logger()
-		svcLogger  = l.With().Str("category", "svc").Logger()
-		repoLogger = l.With().Str("category", "repo").Logger()
-
-		vaultAddr  = os.Getenv("VAULT_ADDR")
-		vaultPath  = os.Getenv("VAULT_PATH")
-		vaultToken = os.Getenv("VAULT_TOKEN")
+		svcLogger  = appLogger.With().Str("category", "svc").Logger()
+		repoLogger = appLogger.With().Str("category", "repo").Logger()
 	)
 
-	vaultClient, err := vault.NewProvider(vaultAddr, vaultPath, vaultToken)
+	dbConn, err := db.NewConnection(config.EnvKey.DbDsn)
 	if err != nil {
-		l.Fatal().Err(err).Msg("error connecting to vault")
-	}
-
-	configProvider := config.NewConfig(vaultClient)
-
-	// getConfig fetches the provided key, if an error occurs, it fails and exits
-	getConfig := func(key string) string {
-		val, err := configProvider.Get(ctx, key)
-		if err != nil {
-			l.Fatal().Err(err).Msgf("error fetching key: %s", key)
-		}
-
-		return val
-	}
-
-	dbConn, err := db.NewConnection(getConfig("DB_DSN"))
-	if err != nil {
-		l.Fatal().Err(err).Msg("db connection failed")
+		appLogger.Fatal().Err(err).Msg("db connection failed")
 	}
 
 	rs := repository.NewStore()
 	rs.UserRepo = repository.NewUserRepo(dbConn, repoLogger)
 
 	var (
-		grpcGWPort = config.Get(config.GrpcGWPort, "0.0.0.0:8001")
-		grpcPort   = config.Get(config.GrpcPort, ":8000")
-		jwtKey     = getConfig("JWT_SYMMETRIC_KEY")
+		grpcGWPort = config.EnvKey.GrpcGatewayPort
+		grpcPort   = strconv.Itoa(int(config.EnvKey.Port))
+		jwtKey     = config.EnvKey.JwtKey
 	)
 
 	jwtManager, err := auth.NewPasetoToken(jwtKey)
 	if err != nil {
-		l.Fatal().Err(err).Msg("jwt manager initialization failed")
+		appLogger.Fatal().Err(err).Msg("jwt manager initialization failed")
 	}
 
 	var (
@@ -80,15 +71,15 @@ func main() {
 
 	pb.RegisterAuthServiceServer(grpcSrv, authSvc)
 
-	lis, err := net.Listen("tcp", grpcPort)
+	lis, err := net.Listen("tcp", ":"+grpcPort)
 	if err != nil {
-		l.Fatal().Err(err).Msg("failed to start net listener")
+		appLogger.Fatal().Err(err).Msg("failed to start net listener")
 	}
 
-	l.Info().Msgf("starting grpc server on %v", grpcPort)
+	appLogger.Info().Msgf("starting grpc server on %v", grpcPort)
 	go func() {
 		if err = grpcSrv.Serve(lis); err != nil {
-			l.Fatal().Err(err).Msg("failed to start grpc server")
+			appLogger.Fatal().Err(err).Msg("failed to start grpc server")
 		}
 	}()
 
@@ -99,12 +90,12 @@ func main() {
 
 	conn, err := grpc.DialContext(ctx, grpcPort, grpcDialOpts...)
 	if err != nil {
-		l.Fatal().Err(err).Msg("failed to dial grpc server")
+		appLogger.Fatal().Err(err).Msg("failed to dial grpc server")
 	}
 
 	gmux := runtime.NewServeMux()
 	if err = pb.RegisterAuthServiceHandler(ctx, gmux, conn); err != nil {
-		l.Fatal().Err(err).Msg("failed to register auth svc gateway")
+		appLogger.Fatal().Err(err).Msg("failed to register auth svc gateway")
 	}
 
 	gwServer := &http.Server{
@@ -112,23 +103,23 @@ func main() {
 		Handler: gmux,
 	}
 
-	l.Info().Msgf("starting gRPC-Gateway on %v", gwServer.Addr)
+	appLogger.Info().Msgf("starting gRPC-Gateway on %v", gwServer.Addr)
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
 		sig := <-sigChan
-		l.Info().Msgf("shutting down server, received os signal - %v", sig)
+		appLogger.Info().Msgf("shutting down server, received os signal - %v", sig)
 
 		if err = gwServer.Shutdown(ctx); err != nil {
-			l.Fatal().Err(err).Msg("failed to stop gRPC-Gateway server")
+			appLogger.Fatal().Err(err).Msg("failed to stop gRPC-Gateway server")
 		}
 
 		grpcSrv.GracefulStop()
 	}()
 
 	if err = gwServer.ListenAndServe(); err != nil {
-		l.Fatal().Err(err).Msg("failed to start gRPC-Gateway server")
+		appLogger.Fatal().Err(err).Msg("failed to start gRPC-Gateway server")
 	}
 }
