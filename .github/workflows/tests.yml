@@ -14,16 +14,6 @@ env:
 
 jobs:
   test:
-    services:
-      postgres:
-        image: postgres
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: secret
-          POSTGRES_DB: bridge_test
-        ports:
-          - 5432:5432
-        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
 
     runs-on: ubuntu-latest
     steps:
@@ -33,19 +23,6 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: 1.19
-
-      - name: Audit Compilers
-        run: make audit
-
-      - name: Build goose migration tool
-        run: make build-goose
-
-      - name: Run DB migrations
-        run: /bin/bash scripts/goose.sh up
-        env:
-          APP_ENV: cicd
-          DB_CONNECTION: postgres
-          DB_URL: postgres://postgres:postgres@localhost:5432/bridge_test?sslmode=disable
 
       - name: Run tests with coverage and race flag enabled
         run: make test

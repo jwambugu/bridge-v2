@@ -1,7 +1,6 @@
 package vault_test
 
 import (
-	"bridge/internal/config"
 	"bridge/internal/config/vault"
 	"bridge/internal/testutils/docker_test"
 	"context"
@@ -49,8 +48,8 @@ func TestProvider_Get_Put(t *testing.T) {
 	asserts.NoError(err)
 
 	var (
-		keyPrefix = config.ProviderKeySeparator
-		wantKey   = keyPrefix + "bridger/test:key"
+		keyPrefix = vault.KeyPrefix
+		wantKey   = keyPrefix + "bridge/test:key"
 		wantValue = "test:key"
 	)
 

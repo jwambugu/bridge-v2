@@ -1,48 +1,61 @@
-package config
+package config_test
 
 import (
+	"bridge/internal/config"
+	"bridge/internal/config/vault"
+	"bridge/internal/testutils/docker_test"
+	"context"
+	"github.com/stretchr/testify/require"
+	"log"
 	"os"
 	"testing"
 )
 
-func TestGet(t *testing.T) {
-	t.Parallel()
+var testVaultProvider *vault.Provider
 
-	if err := os.Setenv("APP_ENV", string(CiCd)); err != nil {
-		t.Fatalf("want no error, got %v", err)
+func testMain(m *testing.M) int {
+	vaultClient, vaultCleanup, err := docker_test.NewVaultClient()
+	if err != nil {
+		log.Fatalln(err)
 	}
 
-	var (
-		wantPort = 8000
-		wantEnv  = string(CiCd)
-	)
+	defer func() {
+		if err = vaultCleanup(); err != nil {
+			log.Fatalln(err)
+		}
+	}()
 
-	env := Get[string]("APP_ENV", "local")
-	if env != wantEnv {
-		t.Fatalf("want value %v, got %v", wantEnv, env)
+	vaultProvider, err := vault.NewProvider(vaultClient.Address, vaultClient.Path, vaultClient.Token)
+	if err != nil {
+		log.Fatalln(err)
 	}
 
-	port := Get[int]("APP_PORT", 3000)
-	if port != wantPort {
-		t.Fatalf("want value %v, got %v", wantPort, port)
+	_ = os.Setenv("VAULT_ADDR", vaultClient.Address)
+	_ = os.Setenv("VAULT_PATH", vaultClient.Path)
+	_ = os.Setenv("VAULT_TOKEN", vaultClient.Token)
+
+	testVaultProvider = vaultProvider
+
+	appConfig := config.NewConfig(vaultProvider)
+	if err = appConfig.Load(context.Background(), ""); err != nil {
+		log.Fatalln(err)
 	}
+
+	return m.Run()
 }
 
-func TestGetEnvironment(t *testing.T) {
-	t.Parallel()
+func TestMain(m *testing.M) {
+	os.Exit(testMain(m))
+}
 
-	if err := os.Setenv("APP_ENV", string(CiCd)); err != nil {
-		t.Fatalf("want no error, got %v", err)
-	}
+func TestConfig(t *testing.T) {
+	appConfig := config.NewConfig(testVaultProvider)
+	ctx := context.Background()
 
-	var wantEnv = CiCd
+	err := appConfig.Load(ctx, "")
+	require.NoError(t, err)
 
-	got := GetEnvironment()
-	if got != wantEnv {
-		t.Fatalf("want environment %v, got %v", wantEnv, got)
-	}
-
-	if short := got.Short(); short != wantEnv.Short() {
-		t.Fatalf("want short environment %v, got %v", "t", short)
-	}
+	appConfig, err = config.NewDefaultConfig(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, appConfig)
 }

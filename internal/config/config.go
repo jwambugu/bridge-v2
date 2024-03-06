@@ -1,34 +1,24 @@
 package config
 
 import (
+	"bridge/internal/config/vault"
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
 
-// Environment is the current running environment.
-type Environment string
+// defaultEnvFile is the default file name used for storing environment variables if none is provided
+const defaultEnvFile = ".env"
 
-const ProviderKeySeparator = "secret://"
-
-const (
-	// Local is the environment used to run the application on the local machine.
-	Local Environment = "local"
-	// Test is the environment used during testing.
-	Test Environment = "test"
-	// Staging is the testing environment before releasing to Production.
-	Staging Environment = "staging"
-	// Production is the release environment.
-	Production Environment = "production"
-	// CiCd is the deployment and testing environment.
-	CiCd Environment = "cicd"
-)
+// ProductionEnvironment is the release environment.
+const ProductionEnvironment = "production"
 
 // Provider provides methods for interacting with the configuration provider
 type Provider interface {
@@ -36,114 +26,128 @@ type Provider interface {
 	Put(ctx context.Context, key string, value string) error
 }
 
-type Configuration struct {
+// envKey stores the environment variables keys
+type envKey struct {
+	Debug           bool   `env:"DEBUG"`
+	Env             string `env:"ENV"`
+	GrpcGatewayPort string `env:"GW_PORT"`
+	Name            string `env:"NAME"`
+	Port            uint16 `env:"PORT"`
+	URL             string `env:"URL"`
+
+	DbDsn  string `env:"DB_DSN" secured:"true"`
+	JwtKey string `env:"JWT_KEY" secured:"true"`
+}
+
+// EnvKey stores parsed env keys values
+var EnvKey envKey
+
+// Config represents a configuration container that utilizes a Provider for retrieving configuration values.
+// It encapsulates the mechanism for accessing configuration information and serves as a central entry point
+// for managing configuration settings within an application.
+type Config struct {
 	provider Provider
 }
 
-func (c *Configuration) Get(ctx context.Context, key string) (string, error) {
-	envKey := os.Getenv(key)
-	securedEnvKey := os.Getenv(key + "_SECURE")
+// AbsPath returns the project absolute path from the root project dir
+func AbsPath(filename string) string {
+	var (
+		_, b, _, _ = runtime.Caller(0)
+		path       = filepath.Join(filepath.Dir(b), "../..")
+	)
 
-	if securedEnvKey != "" {
-		securedKey, err := c.provider.Get(ctx, securedEnvKey)
-		if err != nil {
-			return "", fmt.Errorf("provider get: %w", err)
-		}
-
-		envKey = securedKey
+	if filename == "" {
+		return path
 	}
 
-	return envKey, nil
+	return filepath.Join(path, filename)
 }
 
-// NewConfig initializes new Configuration
-func NewConfig(p Provider) *Configuration {
-	return &Configuration{
+// Load reads the provided env file and maps the env key value to Key which is exported
+// and can be used across the app.
+func (c *Config) Load(ctx context.Context, filename string) (err error) {
+	if filename == "" {
+		filename = defaultEnvFile
+	}
+
+	if err := godotenv.Load(AbsPath(filename)); err != nil {
+		return fmt.Errorf("load env: %v", err)
+	}
+
+	var key envKey
+
+	keyType := reflect.TypeOf(key)
+
+	for i := 0; i < keyType.NumField(); i++ {
+		var (
+			field      = keyType.Field(i)
+			envTag     = field.Tag.Get("env")
+			securedTag = field.Tag.Get("secured")
+		)
+
+		envValue, ok := os.LookupEnv(envTag)
+		if !ok {
+			return fmt.Errorf("env variable %q not found", envTag)
+		}
+
+		if securedTag != "" {
+			envValue, err = c.provider.Get(ctx, envValue)
+			if err != nil {
+				return err
+			}
+		}
+
+		var (
+			fieldValue = reflect.ValueOf(&key).Elem().FieldByName(field.Name)
+			kind       = field.Type.Kind()
+		)
+
+		switch kind {
+		case reflect.Bool:
+			isTrue := strings.ToLower(envValue) == "true"
+			fieldValue.SetBool(isTrue)
+		case reflect.Uint16:
+			val, err := strconv.Atoi(envValue)
+			if err != nil {
+				return fmt.Errorf("atoi: %v", err)
+			}
+			fieldValue.SetUint(uint64(val))
+		case reflect.String:
+			fieldValue.SetString(envValue)
+		default:
+			return fmt.Errorf("unsupported type %q for %q", kind, envTag)
+		}
+	}
+
+	EnvKey = key
+	return nil
+}
+
+// NewConfig initializes new Config
+func NewConfig(p Provider) *Config {
+	return &Config{
 		provider: p,
 	}
 }
 
-var _ = loadConfig()
-
-// Short retrieves the shortname for the Environment
-func (e Environment) Short() string {
-	switch e {
-	case Local:
-		return "l"
-	case Test:
-		return "t"
-	case Production:
-		return "p"
-	case Staging:
-		return "s"
-	case CiCd:
-		return "c"
-	default:
-		return "x"
-	}
-}
-
-type EnvKey interface {
-	string | int
-}
-
-// Get returns the value of the environment variable named by the key, If the Key is not set, it returns the fallback.
-func Get[T EnvKey](key Key, fallback T) T {
-	val := os.Getenv(string(key))
-	if val == "" {
-		return fallback
-	}
-
-	var value any
-	switch any(fallback).(type) {
-	case string:
-		value = val
-	case int:
-		i, err := strconv.Atoi(val)
-		if err != nil {
-			log.Printf("config get %s: %v", key, err)
-			return fallback
-		}
-
-		value = i
-	default:
-		return fallback
-	}
-	return value.(T)
-}
-
-// GetEnvironment returns the current running environment the application is running on.
-func GetEnvironment() Environment {
-	if env := Get[string](AppEnv, ""); env != "" {
-		return Environment(env)
-	}
-	return Test
-}
-
-func GetDBDsn() string {
+// NewDefaultConfig creates a new Config instance with using vault as the default provider
+func NewDefaultConfig(ctx context.Context) (*Config, error) {
 	var (
-		user     = Get[string](DbUser, "")
-		password = Get[string](DbPassword, "")
-		host     = Get[string](DbHost, "")
-		name     = Get[string](DbName, "")
-		url      = Key(fmt.Sprintf(`postgres://%v:%v@%v/%v?sslmode=disable`, user, password, host, name))
+		vaultAddr  = os.Getenv("VAULT_ADDR")
+		vaultPath  = os.Getenv("VAULT_PATH")
+		vaultToken = os.Getenv("VAULT_TOKEN")
 	)
 
-	return string(url)
-}
-
-func loadConfig() error {
-	_, b, _, _ := runtime.Caller(0)
-
-	var (
-		pwd     = filepath.Dir(b)
-		env     = GetEnvironment()
-		envFile = pwd + `/.` + string(env) + `.env`
-	)
-
-	if err := godotenv.Load(envFile); err != nil {
-		log.Fatalf("load config %s: %s", envFile, err.Error())
+	vaultProvider, err := vault.NewProvider(vaultAddr, vaultPath, vaultToken)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil
+	config := NewConfig(vaultProvider)
+
+	if err = config.Load(ctx, ""); err != nil {
+		return nil, err
+	}
+
+	return config, nil
 }

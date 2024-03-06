@@ -47,7 +47,7 @@ func (p *Payload) Valid() error {
 
 func newPayload(user *pb.User, duration time.Duration) Payload {
 	var (
-		appName = config.Get[string](config.AppName, "bridge")
+		appName = config.EnvKey.Name
 		now     = time.Now()
 	)
 

@@ -56,7 +56,7 @@ Copy the config file `internal/config/.example.env` file to `internal/config/.te
 Update the config as per your credentials.
 
 ```bash
-   cp internal/config/.example.env internal/config/.test.env 
+   cp internal/config/.example.env internal/config/example.env 
 ```
 
 Run the migrations
