@@ -10,7 +10,7 @@ the gRPC HTTP spec.
 The service can:
 
 - Login an existing user.
-- Register a new user
+- Register a new user.
 - Get auth user details.
 - Update auth user details.
 
